@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clicker Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: #333;
+        }
+
+        #coinCounter {
+            font-size: 28px;
+            color: #333;
+        }
+
+        .btn {
+            font-size: 20px;
+            padding: 10px 20px;
+            margin-top: 20px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        .upgrade {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #ddd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .upgrade p {
+            font-size: 18px;
+            color: #333;
+        }
+
+        .upgrade button {
+            font-size: 18px;
+            padding: 10px 20px;
+            background-color: #f39c12;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .upgrade button:hover {
+            background-color: #e67e22;
+        }
+
+        .upgrade-section {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Clicker Game</h1>
+    <div id="coinCounter">Coins: 0</div>
+    <button class="btn" id="clickButton">Click for Coins!</button>
+
+    <div class="upgrade-section">
+        <div class="upgrade">
+            <p>Auto Clicker Upgrade</p>
+            <p>Cost: <span id="upgradeCost">10</span> Coins</p>
+            <p>Generates <span id="autoClickerRate">1</span> coins per second</p>
+            <button id="upgradeButton">Buy Auto Clicker</button>
+        </div>
+
+        <div class="upgrade">
+            <p>Click Multiplier Upgrade</p>
+            <p>Cost: <span id="clickMultiplierCost">15</span> Coins</p>
+            <button id="clickMultiplierButton">Buy Click Multiplier</button>
+        </div>
+    </div>
+
+    <script>
+        let coins = 0;
+        let upgradeCost = 10;
+        let clickMultiplierCost = 15;
+        let clickMultiplier = 1;
+        let autoClickerRate = 1;  // Number of coins auto-clicker generates per second
+        let autoClickerActive = false;
+        let autoClickerInterval = null;
+
+        const coinCounterElement = document.getElementById('coinCounter');
+        const clickButton = document.getElementById('clickButton');
+        const upgradeButton = document.getElementById('upgradeButton');
+        const clickMultiplierButton = document.getElementById('clickMultiplierButton');
+        const upgradeCostElement = document.getElementById('upgradeCost');
+        const clickMultiplierCostElement = document.getElementById('clickMultiplierCost');
+        const autoClickerRateElement = document.getElementById('autoClickerRate');
+
+        // Handle manual coin click with click multiplier
+        clickButton.addEventListener('click', () => {
+            coins += clickMultiplier;
+            updateCoinCounter();
+        });
+
+        // Handle auto clicker upgrade purchase
+        upgradeButton.addEventListener('click', () => {
+            if (coins >= upgradeCost) {
+                coins -= upgradeCost;
+                upgradeCost = Math.floor(upgradeCost * 1.5);  // Increase the cost of next upgrade
+                upgradeCostElement.textContent = upgradeCost;
+
+                // Increase the auto clicker rate (coins per second)
+                autoClickerRate++;
+                autoClickerRateElement.textContent = autoClickerRate;
+
+                if (!autoClickerActive) {
+                    startAutoClicker();
+                }
+                updateCoinCounter();
+            } else {
+                alert("Not enough coins for Auto Clicker!");
+            }
+        });
+
+        // Handle click multiplier upgrade purchase
+        clickMultiplierButton.addEventListener('click', () => {
+            if (coins >= clickMultiplierCost) {
+                coins -= clickMultiplierCost;
+                clickMultiplierCost = Math.floor(clickMultiplierCost * 1.5);  // Increase the cost of next upgrade
+                clickMultiplierCostElement.textContent = clickMultiplierCost;
+
+                // Increase the click multiplier
+                clickMultiplier++;
+                updateCoinCounter();
+            } else {
+                alert("Not enough coins for Click Multiplier!");
+            }
+        });
+
+        // Function to start the auto clicker
+        function startAutoClicker() {
+            autoClickerActive = true;
+            autoClickerInterval = setInterval(() => {
+                coins += autoClickerRate;
+                updateCoinCounter();
+            }, 1000);  // Adds autoClickerRate coins every second
+        }
+
+        // Update the coin counter display
+        function updateCoinCounter() {
+            coinCounterElement.textContent = `Coins: ${coins}`;
+        }
+    </script>
+
+</body>
+</html>
