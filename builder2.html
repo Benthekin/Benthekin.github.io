@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft-like Game for iPad</title>
+  <style>
+    body { margin: 0; overflow: hidden; touch-action: none; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // Scene, Camera, Renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040); // Ambient light
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // Sunlight
+    directionalLight.position.set(5, 10, 7.5).normalize();
+    scene.add(directionalLight);
+
+    // Block setup
+    const blocks = [];
+    const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const blockMaterial = new THREE.MeshLambertMaterial({ color: 0x00ff00 }); // Green blocks
+
+    // Raycasting setup for placing/removing blocks
+    const raycaster = new THREE.Raycaster();
+    const touch = new THREE.Vector2();
+    let isPlacing = true; // Toggle block placement/removal
+
+    // Event listener for touchstart
+    window.addEventListener('touchstart', onTouchStart);
+
+    // Block placement/removal logic
+    function onTouchStart(event) {
+      event.preventDefault(); // Prevent scrolling
+      const touchPoint = event.touches[0];
+      touch.x = (touchPoint.clientX / window.innerWidth) * 2 - 1;
+      touch.y = -(touchPoint.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(touch, camera);
+      const intersects = raycaster.intersectObjects(blocks.length ? blocks : [gridHelper]);
+
+      if (intersects.length > 0) {
+        const pos = intersects[0].point.clone().floor().addScalar(0.5);
+
+        if (isPlacing) {
+          const block = new THREE.Mesh(blockGeometry, blockMaterial);
+          block.position.copy(pos);
+          scene.add(block);
+          blocks.push(block);
+        } else {
+          // Remove block if clicked
+          if (intersects[0].object !== gridHelper) {
+            scene.remove(intersects[0].object);
+            blocks.splice(blocks.indexOf(intersects[0].object), 1);
+          }
+        }
+      }
+    }
+
+    // Toggle block placement/removal on keypress (for desktop) or a UI button on mobile
+    function toggleMode() {
+      isPlacing = !isPlacing;
+    }
+
+    // Camera controls
+    let isDragging = false;
+    let previousTouch = { x: 0, y: 0 };
+    let rotationSpeed = 0.005;
+
+    window.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      previousTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isDragging) {
+        let deltaX = (e.touches[0].clientX - previousTouch.x) * rotationSpeed;
+        let deltaY = (e.touches[0].clientY - previousTouch.y) * rotationSpeed;
+        camera.rotation.y -= deltaX;
+        camera.rotation.x -= deltaY;
+        previousTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    });
+
+    window.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+
+    // Camera position and look
+    camera.position.set(10, 10, 10);
+    camera.lookAt(0, 0, 0);
+
+    // Grid Helper (for block placement)
+    const gridHelper = new THREE.GridHelper(50, 50);
+    scene.add(gridHelper);
+
+    // Adjust the screen for resizing
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Main animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
