@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Flying Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: skyblue;
+        }
+        canvas {
+            background-color: #87CEEB;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+        }
+        button {
+            width: 80px;
+            height: 80px;
+            font-size: 24px;
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game" width="800" height="400"></canvas>
+    <div id="controls">
+        <button id="up">🔼</button>
+        <button id="down">🔽</button>
+        <button id="speedUp">⚡</button>
+        <button id="slowDown">🐢</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d");
+
+        const plane = { x: 100, y: 150, width: 80, height: 40, dy: 0, speed: 2 };
+
+        document.getElementById("up").addEventListener("touchstart", () => plane.dy = -2);
+        document.getElementById("down").addEventListener("touchstart", () => plane.dy = 2);
+        document.getElementById("up").addEventListener("touchend", () => plane.dy = 0);
+        document.getElementById("down").addEventListener("touchend", () => plane.dy = 0);
+
+        document.getElementById("speedUp").addEventListener("touchstart", () => plane.speed += 1);
+        document.getElementById("slowDown").addEventListener("touchstart", () => plane.speed = Math.max(1, plane.speed - 1));
+
+        function update() {
+            plane.y += plane.dy;
+            plane.x += plane.speed;
+
+            if (plane.x > canvas.width) plane.x = -plane.width; // Wrap around
+            if (plane.y < 0) plane.y = 0;
+            if (plane.y + plane.height > canvas.height) plane.y = canvas.height - plane.height;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "red";
+            ctx.fillRect(plane.x, plane.y, plane.width, plane.height);
+
+            // Draw horizon
+            ctx.fillStyle = "green";
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
