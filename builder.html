@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iPad 3D Building Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; touch-action: none; } /* Prevent scrolling */
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // Scene, Camera, Renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xaaaaaa);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(5, 10, 7.5).normalize();
+    scene.add(directionalLight);
+
+    // Grid helper
+    const gridHelper = new THREE.GridHelper(50, 50);
+    scene.add(gridHelper);
+
+    // Block setup
+    const blocks = [];
+    const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const blockMaterial = new THREE.MeshLambertMaterial({ color: 0x00ff00 }); // Green block
+
+    // Raycaster setup
+    const raycaster = new THREE.Raycaster();
+    const touch = new THREE.Vector2();
+
+    // Event listeners for touch
+    window.addEventListener('touchstart', onTouchStart);
+
+    function onTouchStart(event) {
+      event.preventDefault(); // Prevent scrolling
+      const touchPoint = event.touches[0];
+      touch.x = (touchPoint.clientX / window.innerWidth) * 2 - 1;
+      touch.y = -(touchPoint.clientY / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(touch, camera);
+      const intersects = raycaster.intersectObjects(blocks.length ? blocks : [gridHelper]);
+
+      if (intersects.length > 0) {
+        const pos = intersects[0].point.clone().floor().addScalar(0.5);
+        const block = new THREE.Mesh(blockGeometry, blockMaterial);
+        block.position.copy(pos);
+        scene.add(block);
+        blocks.push(block);
+      }
+    }
+
+    // Camera position and look
+    camera.position.set(10, 10, 10);
+    camera.lookAt(0, 0, 0);
+
+    // Render loop
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
