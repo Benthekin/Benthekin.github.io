@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Platformer Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #87CEEB;
+        }
+        canvas {
+            background-color: #222;
+            border: 2px solid white;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+        }
+        button {
+            width: 80px;
+            height: 80px;
+            font-size: 24px;
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game" width="800" height="400"></canvas>
+    <div id="controls">
+        <button id="left">⬅️</button>
+        <button id="jump">🔼</button>
+        <button id="right">➡️</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d");
+
+        const player = { x: 100, y: 300, width: 50, height: 50, speed: 5, dy: 0, grounded: false };
+        const gravity = 0.5;
+
+        const platforms = [
+            { x: 50, y: 350, width: 200, height: 20 },
+            { x: 300, y: 280, width: 200, height: 20 },
+            { x: 550, y: 320, width: 200, height: 20 },
+        ];
+
+        let movingLeft = false, movingRight = false;
+
+        document.getElementById("left").addEventListener("touchstart", () => movingLeft = true);
+        document.getElementById("left").addEventListener("touchend", () => movingLeft = false);
+        document.getElementById("right").addEventListener("touchstart", () => movingRight = true);
+        document.getElementById("right").addEventListener("touchend", () => movingRight = false);
+        document.getElementById("jump").addEventListener("touchstart", jump);
+
+        function jump() {
+            if (player.grounded) {
+                player.dy = -12; // Jump strength
+                player.grounded = false;
+            }
+        }
+
+        function update() {
+            player.dy += gravity;
+            player.y += player.dy;
+
+            if (movingLeft) player.x -= player.speed;
+            if (movingRight) player.x += player.speed;
+
+            // Prevent the player from falling through platforms
+            player.grounded = false;
+            platforms.forEach(platform => {
+                if (
+                    player.x < platform.x + platform.width &&
+                    player.x + player.width > platform.x &&
+                    player.y + player.height > platform.y &&
+                    player.y + player.height < platform.y + 10
+                ) {
+                    player.y = platform.y - player.height;
+                    player.dy = 0;
+                    player.grounded = true;
+                }
+            });
+
+            // Prevent falling off the canvas
+            if (player.y + player.height > canvas.height) {
+                player.y = canvas.height - player.height;
+                player.dy = 0;
+                player.grounded = true;
+            }
+
+            // Prevent going off screen
+            player.x = Math.max(0, Math.min(player.x, canvas.width - player.width));
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "blue";
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            ctx.fillStyle = "green";
+            platforms.forEach(platform => ctx.fillRect(platform.x, platform.y, platform.width, platform.height));
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
