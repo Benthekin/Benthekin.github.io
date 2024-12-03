@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Pizza Boss Fight</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #222;
+    }
+    canvas {
+      display: block;
+      background-color: #111;
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Player settings
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height - 80,
+      size: 60,
+      color: 'blue',
+      speed: 10
+    };
+
+    // Boss settings
+    const boss = {
+      x: canvas.width / 2 - 75,
+      y: 50,
+      width: 150,
+      height: 150,
+      color: 'tomato',
+      health: 10,
+      speed: 2
+    };
+
+    // Bullet settings
+    const bullets = [];
+    
+    // Controls
+    let touchX = player.x;
+
+    window.addEventListener('touchmove', (e) => {
+      touchX = e.touches[0].clientX;
+    });
+
+    function drawPlayer() {
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x - player.size / 2, player.y, player.size, player.size);
+    }
+
+    function drawBoss() {
+      ctx.fillStyle = boss.color;
+      ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+    }
+
+    function drawBullets() {
+      ctx.fillStyle = 'yellow';
+      bullets.forEach((bullet, index) => {
+        bullet.y -= bullet.speed;
+        ctx.fillRect(bullet.x, bullet.y, 10, 20);
+
+        // Remove off-screen bullets
+        if (bullet.y < 0) bullets.splice(index, 1);
+
+        // Collision detection
+        if (bullet.x > boss.x && bullet.x < boss.x + boss.width && bullet.y < boss.y + boss.height) {
+          bullets.splice(index, 1);
+          boss.health -= 1;
+          if (boss.health <= 0) alert("You defeated the Pizza Boss!");
+        }
+      });
+    }
+
+    function updateGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Smooth player movement towards touch point
+      player.x += (touchX - player.x) * 0.1;
+
+      drawPlayer();
+      drawBoss();
+      drawBullets();
+
+      requestAnimationFrame(updateGame);
+    }
+
+    // Fire bullets on touch
+    window.addEventListener('touchstart', () => {
+      bullets.push({ x: player.x, y: player.y, speed: 10 });
+    });
+
+    updateGame();
+  </script>
+</body>
+</html>
