@@ -2,6 +2,6 @@
 
   <body>
     
-    <p>This link takes you to my website.
+    This link takes you to my website.
 
   </body>
