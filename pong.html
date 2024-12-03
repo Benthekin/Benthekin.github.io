@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Ping Pong Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+        }
+        canvas {
+            background-color: black;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="pong" width="800" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById("pong");
+        const context = canvas.getContext("2d");
+
+        // Create the paddles and ball
+        const paddleWidth = 10, paddleHeight = 80;
+        const ballSize = 15;
+
+        const player = { x: 10, y: (canvas.height / 2) - (paddleHeight / 2), score: 0 };
+        const ai = { x: canvas.width - paddleWidth - 10, y: (canvas.height / 2) - (paddleHeight / 2), score: 0 };
+        const ball = { x: canvas.width / 2, y: canvas.height / 2, dx: 4, dy: 4 };
+
+        // Draw rectangle
+        function drawRect(x, y, width, height, color) {
+            context.fillStyle = color;
+            context.fillRect(x, y, width, height);
+        }
+
+        // Draw ball
+        function drawBall(x, y, size, color) {
+            context.fillStyle = color;
+            context.beginPath();
+            context.arc(x, y, size, 0, Math.PI * 2);
+            context.fill();
+        }
+
+        // Move paddle with touch
+        let touchY;
+        canvas.addEventListener("touchmove", (event) => {
+            const touch = event.touches[0];
+            touchY = touch.clientY - canvas.offsetTop - (paddleHeight / 2);
+            player.y = Math.max(Math.min(touchY, canvas.height - paddleHeight), 0);
+        });
+
+        // Update game elements
+        function update() {
+            // Move the ball
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Ball collision with top and bottom walls
+            if (ball.y + ballSize > canvas.height || ball.y - ballSize < 0) {
+                ball.dy *= -1;
+            }
+
+            // AI movement (simple follow logic)
+            if (ball.y > ai.y + paddleHeight / 2) {
+                ai.y += 5;
+            } else if (ball.y < ai.y + paddleHeight / 2) {
+                ai.y -= 5;
+            }
+
+            // Ball and paddle collision
+            if (
+                (ball.x - ballSize < player.x + paddleWidth && ball.y > player.y && ball.y < player.y + paddleHeight) ||
+                (ball.x + ballSize > ai.x && ball.y > ai.y && ball.y < ai.y + paddleHeight)
+            ) {
+                ball.dx *= -1;
+            }
+
+            // Ball out of bounds (reset and score)
+            if (ball.x < 0 || ball.x > canvas.width) {
+                ball.x = canvas.width / 2;
+                ball.y = canvas.height / 2;
+                ball.dx = 4;
+                ball.dy = 4;
+            }
+        }
+
+        // Draw game elements
+        function draw() {
+            drawRect(0, 0, canvas.width, canvas.height, "black");  // Clear canvas
+            drawRect(player.x, player.y, paddleWidth, paddleHeight, "white");  // Player paddle
+            drawRect(ai.x, ai.y, paddleWidth, paddleHeight, "white");  // AI paddle
+            drawBall(ball.x, ball.y, ballSize, "white");  // Ball
+        }
+
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start the game
+        gameLoop();
+    </script>
+</body>
+</html>
