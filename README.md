@@ -6,3 +6,4 @@
 <p>https://benthekin.github.io/3DFS.html -- This link takes you to a 3D flying simulator.</p>
 <p>https://benthekin.github.io/pizza.html -- This link takes you to a pizza boss fight game.</p>
 <p>https://benthekin.github.io/jackinthebox.html -- this link makes a very scary jumpscare.🃏📦</p>
+<p>https://benthekin.github.io/clicker.html -- this link takes you to a clicker game</p>
