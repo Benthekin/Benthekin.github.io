@@ -1,1 +1,1 @@
-https://github.com/Benthekin/Benthekin.github.io.git
+~$ git clone https://github.com/username/username.github.io
