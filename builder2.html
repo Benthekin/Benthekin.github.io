@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Joystick, Block Placement, Block Breaking, Walking, and Camera Drag</title>
+  <title>Minecraft-like Game with Joystick, Jump, Block Placement, Enhanced Terrain, Camera Drag, and Movement</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
@@ -50,6 +50,23 @@
     .selected {
       border: 4px solid yellow;
     }
+
+    /* Jump button styling */
+    #jumpButton {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      background-color: #ffcc00;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      color: white;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -60,6 +77,9 @@
 
   <!-- Inventory UI -->
   <div class="inventory" id="inventory"></div>
+
+  <!-- Jump Button -->
+  <div id="jumpButton">Jump</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
@@ -107,7 +127,7 @@
       inventoryContainer.appendChild(button);
     });
 
-    // Terrain Generation
+    // Enhanced Terrain Generation
     const terrainWidth = 20;
     const terrainDepth = 20;
     const blockSize = 1;
@@ -167,92 +187,62 @@
     const gravity = -0.2;
     let velocity = new THREE.Vector3(0, 0, 0);
     const groundLevel = 0;
+    let isJumping = false;
+
+    // Jumping
+    const jumpHeight = 2;
+    const jumpSpeed = 0.3;
+
+    function handleJump() {
+      if (!isJumping && camera.position.y === groundLevel) {
+        isJumping = true;
+        velocity.y = jumpSpeed;
+      }
+    }
+
+    document.getElementById('jumpButton').addEventListener('click', handleJump);
 
     function updateMovement() {
       velocity.y += gravity; // Apply gravity
 
+      // Check for collision with terrain
+      blocks.forEach(block => {
+        if (camera.position.x > block.position.x - blockSize / 2 && camera.position.x < block.position.x + blockSize / 2 &&
+            camera.position.z > block.position.z - blockSize / 2 && camera.position.z < block.position.z + blockSize / 2 &&
+            camera.position.y <= block.position.y + blockSize / 2) {
+          velocity.y = 0;
+          camera.position.y = block.position.y + blockSize / 2; // Prevent falling through blocks
+        }
+      });
+
       camera.position.x += moveDirection.x * 0.1;
       camera.position.z += moveDirection.z * 0.1;
-
-      // Check if the camera is below the ground and reset its position
-      if (camera.position.y + velocity.y < groundLevel) {
-        velocity.y = 0;
-        camera.position.y = groundLevel; // Keep the camera on the ground
-      }
-
       camera.position.y += velocity.y;
 
-      // Handle movement logic
-    }
-
-    // Block Placement and Breaking
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    const selectedObject = new THREE.Object3D();
-
-    window.addEventListener('click', onScreenClick);
-
-    function onScreenClick(event) {
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(scene.children, true);
-
-      if (intersects.length > 0) {
-        const intersectedObject = intersects[0].object;
-
-        // Block Placement
-        if (intersectedObject.name === "terrain") {
-          const pos = intersects[0].point.clone().floor().addScalar(0.5);
-          createBlock(pos.x, pos.y, pos.z, selectedBlockType.color, false);
-        }
-
-        // Block Breaking
-        if (intersectedObject.name === "placed") {
-          scene.remove(intersectedObject);
-          blocks.splice(blocks.indexOf(intersectedObject), 1);
-        }
+      // Ensure player doesn't fall below ground level
+      if (camera.position.y < groundLevel) {
+        camera.position.y = groundLevel;
+        velocity.y = 0;
       }
     }
 
-    // Camera dragging logic
-    let isDragging = false;
-    let lastTouch = { x: 0, y: 0 };
+    // Block Placement
+    function placeBlock() {
+      const blockColor = selectedBlockType.color;
+      const block = createBlock(Math.floor(camera.position.x), Math.floor(camera.position.y), Math.floor(camera.position.z) - 2, blockColor, false);
+      block.name = 'placed'; // Differentiate placed blocks
+    }
 
-    document.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        isDragging = true;
-        lastTouch.x = e.touches[0].clientX;
-        lastTouch.y = e.touches[0].clientY;
-      }
-    });
+    document.addEventListener('click', placeBlock);
 
-    document.addEventListener('touchmove', (e) => {
-      if (isDragging) {
-        const deltaX = e.touches[0].clientX - lastTouch.x;
-        const deltaY = e.touches[0].clientY - lastTouch.y;
-
-        camera.rotation.y -= deltaX * 0.005;
-        camera.rotation.x -= deltaY * 0.005;
-
-        lastTouch.x = e.touches[0].clientX;
-        lastTouch.y = e.touches[0].clientY;
-      }
-    });
-
-    document.addEventListener('touchend', () => {
-      isDragging = false;
-    });
-
-    // Rendering loop
+    // Render Loop
     function animate() {
       requestAnimationFrame(animate);
       updateMovement();
       renderer.render(scene, camera);
     }
-    animate();
 
+    animate();
   </script>
 </body>
 </html>
