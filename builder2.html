@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Joystick, Block Placement, Block Breaking, and Walking</title>
+  <title>Minecraft-like Game with Joystick, Block Placement, Block Breaking, Walking, and Camera Drag</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
@@ -216,7 +216,36 @@
       }
     }
 
-    // Main animation loop
+    // Camera dragging logic
+    let isDragging = false;
+    let lastTouch = { x: 0, y: 0 };
+
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        lastTouch.x = e.touches[0].clientX;
+        lastTouch.y = e.touches[0].clientY;
+      }
+    });
+
+    document.addEventListener('touchmove', (e) => {
+      if (isDragging) {
+        const deltaX = e.touches[0].clientX - lastTouch.x;
+        const deltaY = e.touches[0].clientY - lastTouch.y;
+
+        camera.rotation.y -= deltaX * 0.005;
+        camera.rotation.x -= deltaY * 0.005;
+
+        lastTouch.x = e.touches[0].clientX;
+        lastTouch.y = e.touches[0].clientY;
+      }
+    });
+
+    document.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+
+    // Rendering loop
     function animate() {
       requestAnimationFrame(animate);
       updateMovement();
@@ -224,12 +253,6 @@
     }
     animate();
 
-    // Adjust for screen resizing
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
   </script>
 </body>
 </html>
