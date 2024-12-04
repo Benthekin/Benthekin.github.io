@@ -3,30 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Joystick</title>
+  <title>Minecraft-like Game with Enhanced Terrain</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
-    /* Joystick container */
-    #joystick { 
+    .inventory { 
       position: fixed; 
-      bottom: 20px; left: 20px; 
-      width: 100px; height: 100px; 
-      background: rgba(255, 255, 255, 0.2); 
-      border-radius: 50%; 
-      touch-action: none;
+      bottom: 10px; 
+      left: 50%; 
+      transform: translateX(-50%); 
+      display: flex; 
+      background: rgba(0, 0, 0, 0.7); 
+      padding: 5px; 
+      border-radius: 5px; 
     }
-    #joystick-inner { 
+    .block-btn { 
       width: 40px; height: 40px; 
-      background: rgba(0, 128, 255, 0.7); 
-      border-radius: 50%; 
-      position: absolute; 
-      top: 30px; left: 30px;
+      margin: 0 5px; 
+      cursor: pointer; 
+      border: 1px solid #fff; 
     }
+    .selected { border: 3px solid yellow; }
   </style>
 </head>
 <body>
-  <div id="joystick"><div id="joystick-inner"></div></div>
+  <div class="inventory" id="inventory"></div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     // Scene, Camera, Renderer
@@ -43,70 +45,102 @@
     directionalLight.position.set(5, 10, 7.5).normalize();
     scene.add(directionalLight);
 
-    // Grid Helper
-    const gridHelper = new THREE.GridHelper(50, 50);
-    scene.add(gridHelper);
-
     // Camera position
-    camera.position.set(0, 2, 5);
-    let cameraDirection = new THREE.Vector3();
-    let moveSpeed = 0.1;
+    camera.position.set(0, 20, 30);
+    camera.lookAt(0, 0, 0);
 
-    // Handle joystick movement
-    const joystick = document.getElementById('joystick');
-    const joystickInner = document.getElementById('joystick-inner');
-    let joystickOffset = { x: 0, y: 0 };
-    let joystickActive = false;
+    // Inventory setup
+    const blockTypes = [
+      { color: 0x00ff00, name: 'Grass' },
+      { color: 0x8B4513, name: 'Dirt' },
+      { color: 0x808080, name: 'Stone' },
+      { color: 0xffd700, name: 'Sand' },
+      { color: 0x87ceeb, name: 'Water' }
+    ];
+    let selectedBlockType = blockTypes[0];
 
-    joystick.addEventListener('touchstart', (e) => {
-      joystickActive = true;
-      updateJoystickPosition(e);
+    const inventoryContainer = document.getElementById('inventory');
+    blockTypes.forEach((block, index) => {
+      const button = document.createElement('div');
+      button.classList.add('block-btn');
+      button.style.backgroundColor = `#${block.color.toString(16).padStart(6, '0')}`;
+      if (index === 0) button.classList.add('selected'); // Highlight default
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.block-btn').forEach(btn => btn.classList.remove('selected'));
+        button.classList.add('selected');
+        selectedBlockType = block;
+      });
+      inventoryContainer.appendChild(button);
     });
-    
-    joystick.addEventListener('touchmove', updateJoystickPosition);
-    
-    joystick.addEventListener('touchend', () => {
-      joystickActive = false;
-      joystickInner.style.transform = `translate(0px, 0px)`;
-      joystickOffset = { x: 0, y: 0 };
-    });
 
-    function updateJoystickPosition(e) {
-      const rect = joystick.getBoundingClientRect();
-      const touch = e.touches[0];
-      const x = touch.clientX - rect.left - 50;  // Center the joystick
-      const y = touch.clientY - rect.top - 50;
-      const maxDistance = 50;  // Maximum distance joystick can move
+    // Enhanced Terrain Generation
+    const terrainWidth = 20;
+    const terrainDepth = 20;
+    const blockSize = 1;
+    const blocks = [];
 
-      const distance = Math.min(Math.sqrt(x * x + y * y), maxDistance);
-      const angle = Math.atan2(y, x);
-      joystickOffset = { x: Math.cos(angle) * (distance / maxDistance), y: Math.sin(angle) * (distance / maxDistance) };
-
-      joystickInner.style.transform = `translate(${joystickOffset.x * maxDistance}px, ${joystickOffset.y * maxDistance}px)`;
+    function createBlock(x, y, z, color, isTerrain = true) {
+      const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+      const material = new THREE.MeshLambertMaterial({ color });
+      const block = new THREE.Mesh(geometry, material);
+      block.position.set(x, y, z);
+      block.name = isTerrain ? 'terrain' : 'placed';
+      scene.add(block);
+      blocks.push(block);
+      return block;
     }
 
-    // Movement logic
-    function updateMovement() {
-      if (joystickActive) {
-        camera.getWorldDirection(cameraDirection);
-        cameraDirection.y = 0;  // Keep the camera level
-        
-        // Forward/backward movement
-        camera.position.addScaledVector(cameraDirection, joystickOffset.y * moveSpeed);
-        
-        // Rotation (left/right)
-        camera.rotation.y -= joystickOffset.x * 0.05;
+    function generateTerrain() {
+      for (let i = -terrainWidth / 2; i < terrainWidth / 2; i++) {
+        for (let j = -terrainDepth / 2; j < terrainDepth / 2; j++) {
+          const height = Math.floor(Math.random() * 5); // Random heights
+          for (let k = 0; k <= height; k++) {
+            let color;
+            if (k === height) color = 0x00ff00; // Grass on top
+            else if (k > height - 2) color = 0x8B4513; // Dirt layer
+            else color = 0x808080; // Stone below
+            createBlock(i, k, j, color);
+          }
+        }
+      }
+    }
+    generateTerrain();
+
+    // Block breaking functionality
+    const raycaster = new THREE.Raycaster();
+    const touch = new THREE.Vector2();
+
+    window.addEventListener('click', onScreenClick);
+
+    function onScreenClick(event) {
+      touch.x = (event.clientX / window.innerWidth) * 2 - 1;
+      touch.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(touch, camera);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+
+      if (intersects.length > 0) {
+        const selectedObject = intersects[0].object;
+
+        if (selectedObject.name === "terrain") {
+          scene.remove(selectedObject);
+          const index = blocks.indexOf(selectedObject);
+          if (index > -1) blocks.splice(index, 1); // Remove block from array
+        } else {
+          // Place a new block
+          const pos = intersects[0].point.clone().floor().addScalar(0.5);
+          createBlock(pos.x, pos.y, pos.z, selectedBlockType.color, false);
+        }
       }
     }
 
     // Main animation loop
     function animate() {
       requestAnimationFrame(animate);
-      updateMovement();  // Handle joystick movement
       renderer.render(scene, camera);
     }
     animate();
-    
+
     // Adjust for screen resizing
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
