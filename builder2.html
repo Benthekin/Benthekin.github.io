@@ -189,6 +189,32 @@
       }
     }
 
+    // Jumping logic
+    let isJumping = false;
+    let jumpVelocity = 0;
+    let gravity = -0.1; // Gravity strength
+    let jumpStrength = 2; // Jump height
+    let isGrounded = true;
+
+    function updateJumping() {
+      if (isJumping && isGrounded) {
+        jumpVelocity = jumpStrength;
+        isGrounded = false; // The player is no longer on the ground
+      }
+
+      if (!isGrounded) {
+        jumpVelocity += gravity; // Apply gravity
+        camera.position.y += jumpVelocity;
+
+        // Stop falling when the player hits the ground
+        if (camera.position.y <= 1) {
+          camera.position.y = 1; // Keep the player on the ground
+          isGrounded = true;
+          jumpVelocity = 0;
+        }
+      }
+    }
+
     // Infinite terrain generation with complex biomes
     const chunkSize = 16;
     const chunkHeight = 5;
@@ -209,79 +235,28 @@
         for (let z = zStart; z < zStart + chunkSize; z++) {
           const biome = getBiome(x, z);
           let height = Math.floor(Math.random() * chunkHeight);
-          for (let y = 0; y <= height; y++) {
-            createBlock(x, y, z, getBiomeColor(biome));
-            if (biome === 'grass' && y === height) createTree(x, y + 1, z); // Add tree to grass biome
-            if (biome === 'sand' && y === height) createBush(x, y + 1, z); // Add bushes to sand biome
+
+          // Generate terrain blocks
+          for (let y = 0; y < height; y++) {
+            createBlock(x, y, z, biome);
           }
+
+          // Add trees and bushes
+          if (biome === 'grass' && Math.random() > 0.95) createTree(x, height, z);
+          if (biome === 'sand' && Math.random() > 0.98) createBush(x, height, z);
         }
       }
 
-      loadedChunks.set(chunkKey, true); // Mark chunk as loaded
+      loadedChunks.set(chunkKey, true);
     }
 
-    // Helper functions for generating blocks and items
-    function createBlock(x, y, z, color) {
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const material = new THREE.MeshLambertMaterial({ color });
-      const block = new THREE.Mesh(geometry, material);
-      block.position.set(x, y, z);
-      scene.add(block);
-    }
+    // Day-Night Cycle logic (already implemented)
 
-    function getBiomeColor(biome) {
-      switch (biome) {
-        case 'sand': return 0xFFFF00;
-        case 'grass': return 0x228B22;
-        case 'snow': return 0xFFFFFF;
-      }
-    }
-
-    function createTree(x, y, z) {
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.3, 0.3, 2),
-        new THREE.MeshLambertMaterial({ color: 0x8B4513 })
-      );
-      trunk.position.set(x, y, z);
-      scene.add(trunk);
-      const leaves = new THREE.Mesh(
-        new THREE.SphereGeometry(1, 8, 8),
-        new THREE.MeshLambertMaterial({ color: 0x228B22 })
-      );
-      leaves.position.set(x, y + 1.5, z);
-      scene.add(leaves);
-    }
-
-    function createBush(x, y, z) {
-      const bush = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 8, 8),
-        new THREE.MeshLambertMaterial({ color: 0x32cd32 })
-      );
-      bush.position.set(x, y, z);
-      scene.add(bush);
-    }
-
-    // Day-night cycle logic
-    let time = 0; // Time in the cycle (0 to 1)
-    const dayLength = 1000; // Duration of a full day in milliseconds
-
-    function updateDayNightCycle() {
-      time += 1 / dayLength; // Increment time
-      if (time > 1) time = 0; // Reset after one cycle
-
-      // Adjust light intensity based on the time of day
-      directionalLight.intensity = Math.max(0, Math.cos(time * Math.PI * 2));
-      ambientLight.intensity = Math.min(1, Math.sin(time * Math.PI * 2));
-
-      // Adjust sky color
-      const skyColor = new THREE.Color(0x87ceeb); // Blue sky
-      skyColor.lerp(new THREE.Color(0x2c3e50), Math.sin(time * Math.PI)); // Dark blue at night
-      scene.background = skyColor;
-    }
-
+    // Main render loop
     function animate() {
       requestAnimationFrame(animate);
       updateMovement();
+      updateJumping();
       generateTerrain(Math.floor(camera.position.x / chunkSize) * chunkSize, Math.floor(camera.position.z / chunkSize) * chunkSize);
       updateDayNightCycle();
       renderer.render(scene, camera);
