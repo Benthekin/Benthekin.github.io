@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Camera Control</title>
+  <title>Infinite Terrain with Day-Night Cycle</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
@@ -11,6 +11,7 @@
 </head>
 <body>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
   <script>
     // Scene, Camera, Renderer
     const scene = new THREE.Scene();
@@ -20,106 +21,92 @@
     document.body.appendChild(renderer.domElement);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040);
+    const ambientLight = new THREE.AmbientLight(0x404040); // Base light
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // Sunlight
+    directionalLight.position.set(10, 50, 30);
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 10, 7.5).normalize();
     scene.add(directionalLight);
 
-    // Camera position
-    camera.position.set(0, 5, 10);
+    // Day-Night cycle variables
+    let time = 0; // Time counter for the day-night cycle
+    const cycleSpeed = 0.002; // Adjust for slower cycles
 
-    // Controls setup
-    let isDragging = false;
-    let previousMousePosition = { x: 0, y: 0 };
-    let yaw = 0; // Horizontal rotation (left-right)
-    let pitch = 0; // Vertical rotation (up-down)
+    // Perlin noise instance for terrain generation
+    const simplex = new SimplexNoise();
 
-    // Handle mouse and touch movement
-    document.addEventListener('mousedown', (event) => {
-      isDragging = true;
-      previousMousePosition.x = event.clientX;
-      previousMousePosition.y = event.clientY;
-    });
+    // Terrain generation parameters
+    const chunkSize = 16; // Number of blocks per chunk side
+    const blockSize = 1; // Size of each block
+    const loadedChunks = new Map(); // Track loaded chunks
 
-    document.addEventListener('mousemove', (event) => {
-      if (isDragging) {
-        const deltaMove = {
-          x: event.clientX - previousMousePosition.x,
-          y: event.clientY - previousMousePosition.y,
-        };
+    // Helper function to create a block
+    function createBlock(x, y, z, color) {
+      const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+      const material = new THREE.MeshStandardMaterial({ color });
+      const block = new THREE.Mesh(geometry, material);
+      block.position.set(x, y, z);
+      scene.add(block);
+    }
 
-        yaw -= deltaMove.x * 0.005; // Adjust rotation speed
-        pitch -= deltaMove.y * 0.005;
+    // Generate terrain chunk at specific position
+    function generateChunk(xStart, zStart) {
+      const chunkKey = `${xStart},${zStart}`;
+      if (loadedChunks.has(chunkKey)) return; // Avoid regenerating chunks
 
-        // Limit the pitch to avoid flipping
-        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+      for (let x = 0; x < chunkSize; x++) {
+        for (let z = 0; z < chunkSize; z++) {
+          // Calculate height using Perlin noise
+          const worldX = xStart + x;
+          const worldZ = zStart + z;
+          const height = Math.floor(simplex.noise2D(worldX / 10, worldZ / 10) * 5 + 5); // Adjust scaling
 
-        // Update camera direction
-        camera.rotation.order = 'YXZ'; // Correct rotation order
-        camera.rotation.y = yaw;
-        camera.rotation.x = pitch;
-
-        previousMousePosition.x = event.clientX;
-        previousMousePosition.y = event.clientY;
+          // Create blocks up to the calculated height
+          for (let y = 0; y <= height; y++) {
+            const color = y === height ? 0x228B22 : 0x8B4513; // Top block green, others brown
+            createBlock(worldX * blockSize, y * blockSize, worldZ * blockSize, color);
+          }
+        }
       }
-    });
 
-    document.addEventListener('mouseup', () => { isDragging = false; });
-    document.addEventListener('mouseleave', () => { isDragging = false; });
+      loadedChunks.set(chunkKey, true); // Mark the chunk as loaded
+    }
 
-    // Touch events for iPad
-    document.addEventListener('touchstart', (event) => {
-      if (event.touches.length === 1) { // Single touch
-        isDragging = true;
-        previousMousePosition.x = event.touches[0].clientX;
-        previousMousePosition.y = event.touches[0].clientY;
+    // Player position tracking for infinite terrain
+    function loadChunksAroundPlayer() {
+      const playerChunkX = Math.floor(camera.position.x / (chunkSize * blockSize)) * chunkSize;
+      const playerChunkZ = Math.floor(camera.position.z / (chunkSize * blockSize)) * chunkSize;
+
+      // Load chunks around the player in a 3x3 grid
+      for (let dx = -chunkSize; dx <= chunkSize; dx += chunkSize) {
+        for (let dz = -chunkSize; dz <= chunkSize; dz += chunkSize) {
+          generateChunk(playerChunkX + dx, playerChunkZ + dz);
+        }
       }
-    });
+    }
 
-    document.addEventListener('touchmove', (event) => {
-      if (isDragging && event.touches.length === 1) {
-        const deltaMove = {
-          x: event.touches[0].clientX - previousMousePosition.x,
-          y: event.touches[0].clientY - previousMousePosition.y,
-        };
+    // Day-Night cycle logic
+    function updateDayNightCycle() {
+      time += cycleSpeed;
+      const intensity = (Math.sin(time) + 1.5) / 2.5; // Smooth intensity variation
+      ambientLight.intensity = 0.2 + intensity * 0.5; // Vary ambient light
+      directionalLight.intensity = intensity;
 
-        yaw -= deltaMove.x * 0.005;
-        pitch -= deltaMove.y * 0.005;
+      // Adjust color to simulate sunrise/sunset hues
+      const colorValue = new THREE.Color(`hsl(${(time * 30) % 360}, 100%, ${50 + intensity * 30}%)`);
+      directionalLight.color.set(colorValue);
+    }
 
-        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
-
-        camera.rotation.order = 'YXZ';
-        camera.rotation.y = yaw;
-        camera.rotation.x = pitch;
-
-        previousMousePosition.x = event.touches[0].clientX;
-        previousMousePosition.y = event.touches[0].clientY;
-      }
-    });
-
-    document.addEventListener('touchend', () => { isDragging = false; });
-
-    // Simple cube as a reference object
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
-
-    // Ground plane
-    const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    scene.add(ground);
-
-    // Animation loop
+    // Render loop
     function animate() {
       requestAnimationFrame(animate);
+      loadChunksAroundPlayer();
+      updateDayNightCycle();
       renderer.render(scene, camera);
     }
 
-    animate();
+    // Initial camera setup
+    camera.position.set(0, 10, 20);
+    camera.lookAt(0, 0, 0);
 
     // Resize handling
     window.addEventListener('resize', () => {
@@ -127,6 +114,8 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    animate(); // Start the game loop
   </script>
 </body>
 </html>
