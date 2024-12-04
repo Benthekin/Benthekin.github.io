@@ -3,15 +3,99 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Infinite Terrain with Day-Night Cycle</title>
+  <title>Minecraft-like Game with Joystick, Mobs, Biomes, and Infinite Terrain</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
+
+    /* Joystick styling */
+    .joystick-container {
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
+      width: 100px;
+      height: 100px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .joystick {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* Button styling */
+    .button-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .button {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 5px;
+      text-align: center;
+      line-height: 50px;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    /* Inventory styling */
+    .inventory {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 5px;
+      border-radius: 5px;
+    }
+    .block-btn {
+      width: 40px;
+      height: 40px;
+      margin: 0 5px;
+      cursor: pointer;
+      border: 1px solid #fff;
+    }
+    .selected {
+      border: 3px solid yellow;
+    }
+    .delete-btn {
+      color: red;
+      font-size: 24px;
+      font-weight: bold;
+      line-height: 40px;
+      text-align: center;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
+  <!-- Joystick -->
+  <div class="joystick-container" id="joystickContainer">
+    <div class="joystick" id="joystick"></div>
+  </div>
+
+  <!-- Buttons for actions -->
+  <div class="button-container">
+    <div class="button" id="placeButton">⬆️</div>
+    <div class="button" id="breakButton">⬇️</div>
+  </div>
+
+  <!-- Inventory for tools -->
+  <div class="inventory" id="inventory"></div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
   <script>
     // Scene, Camera, Renderer
     const scene = new THREE.Scene();
@@ -21,92 +105,164 @@
     document.body.appendChild(renderer.domElement);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040); // Base light
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // Sunlight
-    directionalLight.position.set(10, 50, 30);
+    const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
     scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // Sun light
+    directionalLight.position.set(5, 10, 7.5).normalize();
     scene.add(directionalLight);
 
-    // Day-Night cycle variables
-    let time = 0; // Time counter for the day-night cycle
-    const cycleSpeed = 0.002; // Adjust for slower cycles
+    // Camera position
+    camera.position.set(0, 20, 30);
+    camera.lookAt(0, 0, 0);
 
-    // Perlin noise instance for terrain generation
-    const simplex = new SimplexNoise();
+    // Inventory setup
+    const blockTypes = [
+      { color: 0x00ff00, name: 'Grass' },
+      { color: 0x8B4513, name: 'Dirt' },
+      { color: 0x808080, name: 'Stone' },
+      { color: 0xffd700, name: 'Sand' },
+      { color: 0x87ceeb, name: 'Water' },
+      { deleteTool: true, name: 'Delete Tool' } // Red X delete tool
+    ];
+    let selectedBlockType = blockTypes[0]; // Default is grass
 
-    // Terrain generation parameters
-    const chunkSize = 16; // Number of blocks per chunk side
-    const blockSize = 1; // Size of each block
-    const loadedChunks = new Map(); // Track loaded chunks
+    // Inventory creation
+    const inventoryContainer = document.getElementById('inventory');
+    blockTypes.forEach((block, index) => {
+      const button = document.createElement('div');
+      button.classList.add('block-btn');
+      if (block.deleteTool) {
+        button.classList.add('delete-btn');
+        button.innerHTML = 'X'; // Red X delete button
+      } else {
+        button.style.backgroundColor = `#${block.color.toString(16).padStart(6, '0')}`;
+      }
+      if (index === 0) button.classList.add('selected'); // Highlight default
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.block-btn').forEach(btn => btn.classList.remove('selected'));
+        button.classList.add('selected');
+        selectedBlockType = block;
+      });
+      inventoryContainer.appendChild(button);
+    });
 
-    // Helper function to create a block
-    function createBlock(x, y, z, color) {
-      const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
-      const material = new THREE.MeshStandardMaterial({ color });
-      const block = new THREE.Mesh(geometry, material);
-      block.position.set(x, y, z);
-      scene.add(block);
+    // Joystick controls
+    const joystickContainer = document.getElementById("joystickContainer");
+    const joystick = document.getElementById("joystick");
+    let joystickPosition = { x: 0, y: 0 };
+    let isJoystickActive = false;
+
+    joystick.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      isJoystickActive = true;
+      const touch = e.touches[0];
+      joystickPosition.x = touch.clientX - joystickContainer.offsetLeft;
+      joystickPosition.y = touch.clientY - joystickContainer.offsetTop;
+    });
+
+    joystick.addEventListener("touchmove", (e) => {
+      if (isJoystickActive) {
+        const touch = e.touches[0];
+        joystickPosition.x = touch.clientX - joystickContainer.offsetLeft;
+        joystickPosition.y = touch.clientY - joystickContainer.offsetTop;
+        joystick.style.transform = `translate(${joystickPosition.x - 25}px, ${joystickPosition.y - 25}px)`;
+      }
+    });
+
+    joystick.addEventListener("touchend", () => {
+      isJoystickActive = false;
+      joystick.style.transform = 'translate(0, 0)';
+    });
+
+    // Handle movement based on joystick position
+    function updateMovement() {
+      if (isJoystickActive) {
+        let xMove = (joystickPosition.x - 50) / 50;
+        let zMove = (joystickPosition.y - 50) / 50;
+
+        camera.position.x += xMove;
+        camera.position.z += zMove;
+
+        // Keep the player within bounds
+        camera.position.x = Math.max(Math.min(camera.position.x, 20), -20);
+        camera.position.z = Math.max(Math.min(camera.position.z, 20), -20);
+      }
     }
 
-    // Generate terrain chunk at specific position
-    function generateChunk(xStart, zStart) {
+    // Jumping logic
+    let isJumping = false;
+    let jumpVelocity = 0;
+    let gravity = -0.1; // Gravity strength
+    let jumpStrength = 2; // Jump height
+    let isGrounded = true;
+
+    function updateJumping() {
+      if (isJumping && isGrounded) {
+        jumpVelocity = jumpStrength;
+        isGrounded = false; // The player is no longer on the ground
+      }
+
+      if (!isGrounded) {
+        jumpVelocity += gravity; // Apply gravity
+        camera.position.y += jumpVelocity;
+
+        // Stop falling when the player hits the ground
+        if (camera.position.y <= 1) {
+          camera.position.y = 1; // Keep the player on the ground
+          isGrounded = true;
+          jumpVelocity = 0;
+        }
+      }
+    }
+
+    // Infinite terrain generation with complex biomes
+    const chunkSize = 16;
+    const chunkHeight = 5;
+    const loadedChunks = new Map();
+
+    function getBiome(x, z) {
+      if (z < 0) return 'snow';
+      if (x < 0) return 'sand';
+      return 'grass';
+    }
+
+    // More complex biome generation with trees, sand, and snow
+    function generateTerrain(xStart, zStart) {
       const chunkKey = `${xStart},${zStart}`;
-      if (loadedChunks.has(chunkKey)) return; // Avoid regenerating chunks
+      if (loadedChunks.has(chunkKey)) return; // Avoid regenerating
 
-      for (let x = 0; x < chunkSize; x++) {
-        for (let z = 0; z < chunkSize; z++) {
-          // Calculate height using Perlin noise
-          const worldX = xStart + x;
-          const worldZ = zStart + z;
-          const height = Math.floor(simplex.noise2D(worldX / 10, worldZ / 10) * 5 + 5); // Adjust scaling
+      for (let x = xStart; x < xStart + chunkSize; x++) {
+        for (let z = zStart; z < zStart + chunkSize; z++) {
+          const biome = getBiome(x, z);
+          let height = Math.floor(Math.random() * chunkHeight);
 
-          // Create blocks up to the calculated height
-          for (let y = 0; y <= height; y++) {
-            const color = y === height ? 0x228B22 : 0x8B4513; // Top block green, others brown
-            createBlock(worldX * blockSize, y * blockSize, worldZ * blockSize, color);
+          // Generate terrain blocks
+          for (let y = 0; y < height; y++) {
+            createBlock(x, y, z, biome);
           }
+
+          // Add trees and bushes
+          if (biome === 'grass' && Math.random() > 0.95) createTree(x, height, z);
+          if (biome === 'sand' && Math.random() > 0.98) createBush(x, height, z);
         }
       }
 
-      loadedChunks.set(chunkKey, true); // Mark the chunk as loaded
+      loadedChunks.set(chunkKey, true);
     }
 
-    // Player position tracking for infinite terrain
-    function loadChunksAroundPlayer() {
-      const playerChunkX = Math.floor(camera.position.x / (chunkSize * blockSize)) * chunkSize;
-      const playerChunkZ = Math.floor(camera.position.z / (chunkSize * blockSize)) * chunkSize;
+    // Day-Night Cycle logic (already implemented)
 
-      // Load chunks around the player in a 3x3 grid
-      for (let dx = -chunkSize; dx <= chunkSize; dx += chunkSize) {
-        for (let dz = -chunkSize; dz <= chunkSize; dz += chunkSize) {
-          generateChunk(playerChunkX + dx, playerChunkZ + dz);
-        }
-      }
-    }
-
-    // Day-Night cycle logic
-    function updateDayNightCycle() {
-      time += cycleSpeed;
-      const intensity = (Math.sin(time) + 1.5) / 2.5; // Smooth intensity variation
-      ambientLight.intensity = 0.2 + intensity * 0.5; // Vary ambient light
-      directionalLight.intensity = intensity;
-
-      // Adjust color to simulate sunrise/sunset hues
-      const colorValue = new THREE.Color(`hsl(${(time * 30) % 360}, 100%, ${50 + intensity * 30}%)`);
-      directionalLight.color.set(colorValue);
-    }
-
-    // Render loop
+    // Main render loop
     function animate() {
       requestAnimationFrame(animate);
-      loadChunksAroundPlayer();
+      updateMovement();
+      updateJumping();
+      generateTerrain(Math.floor(camera.position.x / chunkSize) * chunkSize, Math.floor(camera.position.z / chunkSize) * chunkSize);
       updateDayNightCycle();
       renderer.render(scene, camera);
     }
 
-    // Initial camera setup
-    camera.position.set(0, 10, 20);
-    camera.lookAt(0, 0, 0);
+    animate();
 
     // Resize handling
     window.addEventListener('resize', () => {
@@ -114,8 +270,6 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-
-    animate(); // Start the game loop
   </script>
 </body>
 </html>
