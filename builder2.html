@@ -1,304 +1,221 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Super Enhanced Platformer</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #222;
-        }
-        canvas {
-            background-color: #87CEEB;
-            display: block;
-            border: 2px solid white;
-        }
-        .controls {
-            position: absolute;
-            bottom: 20px;
-            width: 90%;
-            display: flex;
-            justify-content: space-between;
-        }
-        button {
-            width: 80px;
-            height: 80px;
-            background-color: rgba(255, 255, 255, 0.8);
-            border: none;
-            font-size: 24px;
-            border-radius: 50%;
-        }
-        .ui {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-        .ui h2 {
-            margin: 5px 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced Minecraft-like Game</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    
+    /* UI Styles */
+    #joystick-container {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 100px;
+      height: 100px;
+      background: rgba(200, 200, 200, 0.5);
+      border-radius: 50%;
+      touch-action: none;
+    }
+    #inventory {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      gap: 5px;
+    }
+    .inventory-item {
+      width: 50px;
+      height: 50px;
+      background-color: lightgray;
+      border: 2px solid black;
+      cursor: pointer;
+    }
+    #jump-button {
+      position: fixed;
+      bottom: 100px;
+      left: 60px;
+      width: 80px;
+      height: 80px;
+      background-color: orange;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 80px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <canvas id="game" width="800" height="400"></canvas>
-    <div class="controls">
-        <button id="left">⬅️</button>
-        <button id="jump">⬆️</button>
-        <button id="right">➡️</button>
-    </div>
-    <div class="ui">
-        <h2>Score: <span id="score">0</span></h2>
-        <h2>Health: <span id="health">100</span></h2>
-        <h2>Level: <span id="level">1</span></h2>
-        <h2>Lives: <span id="lives">3</span></h2>
-        <h2>Time: <span id="time">00:00</span></h2>
-    </div>
-    
-    <script>
-        const canvas = document.getElementById('game');
-        const ctx = canvas.getContext('2d');
-        let level = 1;
-        let score = 0;
-        let lives = 3;
-        let timeElapsed = 0;
-        let lastTime = Date.now();
+  <div id="joystick-container"></div>
+  <div id="jump-button">Jump</div>
+  <div id="inventory"></div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // Basic Three.js setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-        let player = {
-            x: 50, y: 300, width: 30, height: 50,
-            speed: 5, dy: 0, gravity: 0.5,
-            jumpPower: -12, onGround: false, health: 100, direction: 'right',
-            velocityX: 0, velocityY: 0, speedX: 5, speedY: 0
-        };
+    // Lighting setup
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 7.5).normalize();
+    scene.add(ambientLight);
+    scene.add(directionalLight);
 
-        const levels = [
-            {
-                platforms: [
-                    { x: 0, y: 350, width: 800, height: 50 },
-                    { x: 150, y: 280, width: 120, height: 20 },
-                    { x: 400, y: 250, width: 100, height: 20 },
-                    { x: 600, y: 200, width: 100, height: 20 }
-                ],
-                traps: [
-                    { x: 250, y: 330, width: 50, height: 20, type: 'spike' }
-                ],
-                enemies: [
-                    { x: 500, y: 280, width: 30, height: 40, speed: 2, direction: 1, type: 'patrol' }
-                ],
-                goal: { x: 720, y: 300, width: 50, height: 50 }
-            },
-            {
-                platforms: [
-                    { x: 0, y: 350, width: 800, height: 50 },
-                    { x: 100, y: 280, width: 120, height: 20 },
-                    { x: 400, y: 220, width: 100, height: 20 },
-                    { x: 600, y: 150, width: 100, height: 20 }
-                ],
-                traps: [
-                    { x: 200, y: 330, width: 50, height: 20, type: 'fire' },
-                    { x: 500, y: 220, width: 50, height: 20, type: 'spike' }
-                ],
-                enemies: [
-                    { x: 500, y: 280, width: 30, height: 40, speed: 2, direction: -1, type: 'chaser' }
-                ],
-                goal: { x: 720, y: 300, width: 50, height: 50 }
-            }
-        ];
+    // Inventory setup
+    const inventoryContainer = document.getElementById('inventory');
+    const blockTypes = [
+      { color: 0x228B22, name: "grass" },
+      { color: 0x8B4513, name: "dirt" },
+      { color: 0xFFFFFF, name: "snow" },
+      { color: 0xFF0000, name: "delete" }, // Red X for delete tool
+      { color: 0x8B0000, name: "wood" },
+      { color: 0xFFFF00, name: "stone" }
+    ];
+    let selectedBlockType = blockTypes[0];
 
-        const currentLevel = levels[level - 1];
-        const platforms = currentLevel.platforms;
-        const traps = currentLevel.traps;
-        const enemies = currentLevel.enemies;
-        const goal = currentLevel.goal;
+    blockTypes.forEach((block, index) => {
+      const item = document.createElement('div');
+      item.className = 'inventory-item';
+      item.style.backgroundColor = `#${block.color.toString(16)}`;
+      item.onclick = () => selectBlock(index);
+      inventoryContainer.appendChild(item);
+    });
 
-        let keys = { left: false, right: false, jump: false };
+    function selectBlock(index) {
+      selectedBlockType = blockTypes[index];
+    }
 
-        // Control buttons
-        document.getElementById('left').addEventListener('touchstart', () => keys.left = true);
-        document.getElementById('left').addEventListener('touchend', () => keys.left = false);
-        document.getElementById('right').addEventListener('touchstart', () => keys.right = true);
-        document.getElementById('right').addEventListener('touchend', () => keys.right = false);
-        document.getElementById('jump').addEventListener('touchstart', () => keys.jump = true);
-        document.getElementById('jump').addEventListener('touchend', () => keys.jump = false);
+    // Joystick setup
+    const joystick = document.getElementById('joystick-container');
+    let joystickOffset = { x: 0, y: 0 };
+    let isDragging = false;
 
-        // Sound effects
-        const jumpSound = new Audio('https://www.soundjay.com/button/beep-07.wav');
-        const damageSound = new Audio('https://www.soundjay.com/button/beep-03.wav');
-        const winSound = new Audio('https://www.soundjay.com/button/beep-09.wav');
-        const powerUpSound = new Audio('https://www.soundjay.com/button/coin-1.wav');
+    joystick.addEventListener('pointerdown', () => isDragging = true);
+    window.addEventListener('pointerup', () => { isDragging = false; joystickOffset = { x: 0, y: 0 }; });
+    window.addEventListener('pointermove', (event) => {
+      if (!isDragging) return;
+      joystickOffset = { x: event.clientX - 50, y: event.clientY - 50 };
+    });
 
-        // Timer
-        function updateTimer() {
-            let now = Date.now();
-            let diff = Math.floor((now - lastTime) / 1000);
-            timeElapsed = diff;
-            let minutes = Math.floor(timeElapsed / 60);
-            let seconds = timeElapsed % 60;
-            document.getElementById('time').textContent = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+    // Jump button
+    const jumpButton = document.getElementById('jump-button');
+    let jumpVelocity = 0;
+    let isOnGround = false;
+    jumpButton.addEventListener('pointerdown', () => {
+      if (isOnGround) jumpVelocity = 0.5; // Jump impulse
+      isOnGround = false;
+    });
+
+    // Player movement
+    function updateMovement() {
+      const speed = 0.1;
+      camera.position.x += joystickOffset.x * speed * 0.01;
+      camera.position.z += joystickOffset.y * speed * 0.01;
+
+      jumpVelocity += -0.02;  // Gravity
+      camera.position.y += jumpVelocity;
+      if (camera.position.y < 5) { camera.position.y = 5; jumpVelocity = 0; isOnGround = true; }
+    }
+
+    // Block breaking mechanism
+    function breakBlockAt(x, y, z) {
+      const raycaster = new THREE.Raycaster();
+      raycaster.ray.origin.set(camera.position.x, camera.position.y, camera.position.z);
+      raycaster.ray.direction.set(x - camera.position.x, y - camera.position.y, z - camera.position.z);
+      
+      const intersects = raycaster.intersectObjects(scene.children);
+      if (intersects.length > 0) {
+        const block = intersects[0].object;
+        scene.remove(block);
+      }
+    }
+
+    // Block placing
+    function placeBlockAt(x, y, z, color) {
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const material = new THREE.MeshLambertMaterial({ color });
+      const block = new THREE.Mesh(geometry, material);
+      block.position.set(x, y, z);
+      scene.add(block);
+    }
+
+    // Terrain generation and chunk management
+    const terrainSize = 16;
+    const chunkHeight = 5;
+    const loadedChunks = new Set();
+
+    function generateTerrain(xStart, zStart) {
+      const chunkKey = `${xStart},${zStart}`;
+      if (loadedChunks.has(chunkKey)) return;
+
+      for (let x = 0; x < terrainSize; x++) {
+        for (let z = 0; z < terrainSize; z++) {
+          const height = Math.floor(Math.random() * chunkHeight);
+          for (let y = 0; y <= height; y++) {
+            createBlock(x + xStart, y, z + zStart, y === height ? 0x228B22 : 0x8B4513); // Grass on top, dirt below
+          }
         }
+      }
+      loadedChunks.add(chunkKey);
+    }
 
-        // Update the game state each frame
-        function update() {
-            if (player.health <= 0) {
-                lives--;
-                if (lives > 0) {
-                    resetGame();
-                } else {
-                    alert('Game Over! You are out of lives!');
-                    resetGame(true); // Reset the game and restart
-                }
-            }
+    // Infinite terrain loading
+    function updateTerrain() {
+      const playerChunkX = Math.floor(camera.position.x / terrainSize) * terrainSize;
+      const playerChunkZ = Math.floor(camera.position.z / terrainSize) * terrainSize;
+      generateTerrain(playerChunkX, playerChunkZ);
+      generateTerrain(playerChunkX - terrainSize, playerChunkZ);
+      generateTerrain(playerChunkX + terrainSize, playerChunkZ);
+      generateTerrain(playerChunkX, playerChunkZ - terrainSize);
+      generateTerrain(playerChunkX, playerChunkZ + terrainSize);
+    }
 
-            // Handle horizontal movement
-            if (keys.left) player.x -= player.speed;
-            if (keys.right) player.x += player.speed;
+    // Mobs: Simple entities that move around randomly
+    function spawnMobs() {
+      const mobCount = 3; // Number of mobs to spawn
+      for (let i = 0; i < mobCount; i++) {
+        const mobGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+        const mobMaterial = new THREE.MeshLambertMaterial({ color: 0x00FF00 });
+        const mob = new THREE.Mesh(mobGeometry, mobMaterial);
+        mob.position.set(Math.random() * 100 - 50, 1, Math.random() * 100 - 50);
+        scene.add(mob);
+      }
+    }
 
-            // Apply gravity
-            player.dy += player.gravity;
-            player.y += player.dy;
+    // Day-night cycle logic (slowed down)
+    let time = 0;
+    const dayLength = 20000; // Duration of a full day in milliseconds (slowed down)
 
-            // Collision detection with platforms
-            player.onGround = false;
-            platforms.forEach(platform => {
-                if (player.x < platform.x + platform.width &&
-                    player.x + player.width > platform.x &&
-                    player.y + player.height >= platform.y &&
-                    player.y + player.height <= platform.y + player.dy + 5) {
-                    player.y = platform.y - player.height;
-                    player.dy = 0;
-                    player.onGround = true;
-                }
-            });
+    function updateDayNightCycle() {
+      time += 1 / dayLength; // Slower time increment
+      if (time > 1) time = 0; // Reset after one cycle
 
-            // Jumping
-            if (keys.jump && player.onGround) {
-                player.dy = player.jumpPower;
-                jumpSound.play();
-            }
+      directionalLight.intensity = Math.max(0, Math.sin(time * Math.PI * 2));
+    }
 
-            // Trap collisions
-            traps.forEach(trap => {
-                if (player.x < trap.x + trap.width &&
-                    player.x + player.width > trap.x &&
-                    player.y + player.height > trap.y) {
-                    if (trap.type === 'spike') {
-                        player.health -= 10;
-                        damageSound.play();
-                    } else if (trap.type === 'fire') {
-                        player.health -= 5;
-                        damageSound.play();
-                    }
-                }
-            });
+    // Animation loop
+    function animate() {
+      updateMovement();
+      updateTerrain();
+      updateDayNightCycle();
+      spawnMobs();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
 
-            // Enemy behavior (simple patrolling or chasing)
-            enemies.forEach(enemy => {
-                if (enemy.type === 'patrol') {
-                    enemy.x += enemy.speed * enemy.direction;
-                    if (enemy.x <= 0 || enemy.x + enemy.width >= canvas.width) {
-                        enemy.direction *= -1;
-                    }
-                } else if (enemy.type === 'chaser') {
-                    if (player.x < enemy.x) {
-                        enemy.x -= enemy.speed;
-                    } else {
-                        enemy.x += enemy.speed;
-                    }
-                }
-
-                // Collision with enemies
-                if (player.x < enemy.x + enemy.width &&
-                    player.x + player.width > enemy.x &&
-                    player.y < enemy.y + enemy.height &&
-                    player.y + player.height > enemy.y) {
-                    player.health -= 20;
-                    damageSound.play();
-                }
-            });
-
-            // Goal detection (win the level)
-            if (player.x < goal.x + goal.width &&
-                player.x + player.width > goal.x &&
-                player.y < goal.y + goal.height &&
-                player.y + player.height > goal.y) {
-                winSound.play();
-                level++;
-                if (level > levels.length) {
-                    alert('You completed all levels!');
-                    level = 1; // Restart the game
-                }
-                resetGame();
-            }
-
-            updateTimer();
-        }
-
-        // Reset the game after losing a life or completing a level
-        function resetGame(restart = false) {
-            player.x = 50;
-            player.y = 300;
-            player.dy = 0;
-            player.health = 100;
-
-            if (!restart) {
-                platforms.splice(0, platforms.length, ...levels[level - 1].platforms);
-                traps.splice(0, traps.length, ...levels[level - 1].traps);
-                enemies.splice(0, enemies.length, ...levels[level - 1].enemies);
-                goal.x = levels[level - 1].goal.x;
-                goal.y = levels[level - 1].goal.y;
-            }
-        }
-
-        // Draw everything on the canvas
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw platforms
-            ctx.fillStyle = 'green';
-            platforms.forEach(platform => ctx.fillRect(platform.x, platform.y, platform.width, platform.height));
-
-            // Draw traps
-            traps.forEach(trap => {
-                ctx.fillStyle = trap.type === 'spike' ? 'red' : 'orange';
-                ctx.fillRect(trap.x, trap.y, trap.width, trap.height);
-            });
-
-            // Draw enemies
-            ctx.fillStyle = 'purple';
-            enemies.forEach(enemy => ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height));
-
-            // Draw goal
-            ctx.fillStyle = 'gold';
-            ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
-
-            // Draw player (with simple animation)
-            ctx.fillStyle = player.direction === 'right' ? 'blue' : 'cyan';
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-
-            // Draw UI (score, health, level, lives)
-            updateUI();
-        }
-
-        function updateUI() {
-            document.getElementById('score').textContent = score;
-            document.getElementById('health').textContent = player.health;
-            document.getElementById('level').textContent = level;
-            document.getElementById('lives').textContent = lives;
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        gameLoop();
-    </script>
+    // Initializations
+    camera.position.set(0, 5, 10);
+    camera.lookAt(0, 5, 0);
+    animate();
+  </script>
 </body>
 </html>
