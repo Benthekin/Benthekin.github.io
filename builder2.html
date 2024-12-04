@@ -3,15 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Inventory for iPad</title>
+  <title>Minecraft-like Game with Joystick</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
-    .inventory { position: fixed; bottom: 10px; left: 10px; display: flex; }
-    .block-btn { width: 30px; height: 30px; margin: 0 5px; cursor: pointer; border: 1px solid #fff; }
+    /* Joystick container */
+    #joystick { 
+      position: fixed; 
+      bottom: 20px; left: 20px; 
+      width: 100px; height: 100px; 
+      background: rgba(255, 255, 255, 0.2); 
+      border-radius: 50%; 
+      touch-action: none;
+    }
+    #joystick-inner { 
+      width: 40px; height: 40px; 
+      background: rgba(0, 128, 255, 0.7); 
+      border-radius: 50%; 
+      position: absolute; 
+      top: 30px; left: 30px;
+    }
   </style>
 </head>
 <body>
+  <div id="joystick"><div id="joystick-inner"></div></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     // Scene, Camera, Renderer
@@ -22,120 +37,82 @@
     document.body.appendChild(renderer.domElement);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040); // Ambient light
+    const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // Sunlight
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(5, 10, 7.5).normalize();
     scene.add(directionalLight);
 
-    // Block setup
-    const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const blockColors = [0x00ff00, 0xff0000, 0x0000ff, 0xffff00, 0xff00ff]; // Green, Red, Blue, Yellow, Purple
-    let selectedBlockColor = blockColors[0]; // Default selected block (Green)
-
-    const blocks = [];
-    const raycaster = new THREE.Raycaster();
-    const touch = new THREE.Vector2();
-    let isPlacing = true; // Toggle block placement/removal
-
-    // Event listener for touchstart
-    window.addEventListener('touchstart', onTouchStart);
-
-    // Block placement/removal logic
-    function onTouchStart(event) {
-      event.preventDefault(); // Prevent scrolling
-      const touchPoint = event.touches[0];
-      touch.x = (touchPoint.clientX / window.innerWidth) * 2 - 1;
-      touch.y = -(touchPoint.clientY / window.innerHeight) * 2 + 1;
-
-      raycaster.setFromCamera(touch, camera);
-      const intersects = raycaster.intersectObjects(blocks.length ? blocks : [gridHelper]);
-
-      if (intersects.length > 0) {
-        const pos = intersects[0].point.clone().floor().addScalar(0.5);
-
-        if (isPlacing) {
-          const blockMaterial = new THREE.MeshLambertMaterial({ color: selectedBlockColor });
-          const block = new THREE.Mesh(blockGeometry, blockMaterial);
-          block.position.copy(pos);
-          scene.add(block);
-          blocks.push(block);
-        } else {
-          // Remove block if clicked
-          if (intersects[0].object !== gridHelper) {
-            scene.remove(intersects[0].object);
-            blocks.splice(blocks.indexOf(intersects[0].object), 1);
-          }
-        }
-      }
-    }
-
-    // Toggle block placement/removal on keypress (for desktop) or a UI button on mobile
-    function toggleMode() {
-      isPlacing = !isPlacing;
-    }
-
-    // Camera controls for iPad
-    let isDragging = false;
-    let previousTouch = { x: 0, y: 0 };
-    let rotationSpeed = 0.005;
-
-    window.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      previousTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    });
-
-    window.addEventListener('touchmove', (e) => {
-      if (isDragging) {
-        let deltaX = (e.touches[0].clientX - previousTouch.x) * rotationSpeed;
-        let deltaY = (e.touches[0].clientY - previousTouch.y) * rotationSpeed;
-        camera.rotation.y -= deltaX;
-        camera.rotation.x -= deltaY;
-        previousTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      }
-    });
-
-    window.addEventListener('touchend', () => {
-      isDragging = false;
-    });
-
-    // Camera position and look
-    camera.position.set(10, 10, 10);
-    camera.lookAt(0, 0, 0);
-
-    // Grid Helper (for block placement)
+    // Grid Helper
     const gridHelper = new THREE.GridHelper(50, 50);
     scene.add(gridHelper);
 
-    // Adjust the screen for resizing
+    // Camera position
+    camera.position.set(0, 2, 5);
+    let cameraDirection = new THREE.Vector3();
+    let moveSpeed = 0.1;
+
+    // Handle joystick movement
+    const joystick = document.getElementById('joystick');
+    const joystickInner = document.getElementById('joystick-inner');
+    let joystickOffset = { x: 0, y: 0 };
+    let joystickActive = false;
+
+    joystick.addEventListener('touchstart', (e) => {
+      joystickActive = true;
+      updateJoystickPosition(e);
+    });
+    
+    joystick.addEventListener('touchmove', updateJoystickPosition);
+    
+    joystick.addEventListener('touchend', () => {
+      joystickActive = false;
+      joystickInner.style.transform = `translate(0px, 0px)`;
+      joystickOffset = { x: 0, y: 0 };
+    });
+
+    function updateJoystickPosition(e) {
+      const rect = joystick.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left - 50;  // Center the joystick
+      const y = touch.clientY - rect.top - 50;
+      const maxDistance = 50;  // Maximum distance joystick can move
+
+      const distance = Math.min(Math.sqrt(x * x + y * y), maxDistance);
+      const angle = Math.atan2(y, x);
+      joystickOffset = { x: Math.cos(angle) * (distance / maxDistance), y: Math.sin(angle) * (distance / maxDistance) };
+
+      joystickInner.style.transform = `translate(${joystickOffset.x * maxDistance}px, ${joystickOffset.y * maxDistance}px)`;
+    }
+
+    // Movement logic
+    function updateMovement() {
+      if (joystickActive) {
+        camera.getWorldDirection(cameraDirection);
+        cameraDirection.y = 0;  // Keep the camera level
+        
+        // Forward/backward movement
+        camera.position.addScaledVector(cameraDirection, joystickOffset.y * moveSpeed);
+        
+        // Rotation (left/right)
+        camera.rotation.y -= joystickOffset.x * 0.05;
+      }
+    }
+
+    // Main animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      updateMovement();  // Handle joystick movement
+      renderer.render(scene, camera);
+    }
+    animate();
+    
+    // Adjust for screen resizing
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-
-    // Inventory system
-    const inventory = document.createElement('div');
-    inventory.classList.add('inventory');
-    document.body.appendChild(inventory);
-
-    // Create buttons for inventory
-    blockColors.forEach((color, index) => {
-      const button = document.createElement('div');
-      button.classList.add('block-btn');
-      button.style.backgroundColor = `#${color.toString(16).padStart(6, '0')}`;
-      button.addEventListener('click', () => {
-        selectedBlockColor = color;
-      });
-      inventory.appendChild(button);
-    });
-
-    // Main animation loop
-    function animate() {
-      requestAnimationFrame(animate);
-      renderer.render(scene, camera);
-    }
-    animate();
   </script>
 </body>
 </html>
