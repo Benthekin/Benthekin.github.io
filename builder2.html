@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Joystick Controls</title>
+  <title>Minecraft-like Game with Joystick, Block Placement, and Block Breaking</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
@@ -168,6 +168,37 @@
       camera.position.z += moveDirection.z * 0.1;
     }
 
+    // Block Placement and Breaking
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const selectedObject = new THREE.Object3D();
+
+    window.addEventListener('click', onScreenClick);
+
+    function onScreenClick(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+
+      if (intersects.length > 0) {
+        const intersectedObject = intersects[0].object;
+
+        // Block Placement
+        if (intersectedObject.name === "terrain") {
+          const pos = intersects[0].point.clone().floor().addScalar(0.5);
+          createBlock(pos.x, pos.y, pos.z, selectedBlockType.color, false);
+        }
+
+        // Block Breaking
+        if (intersectedObject.name === "placed") {
+          scene.remove(intersectedObject);
+          blocks.splice(blocks.indexOf(intersectedObject), 1);
+        }
+      }
+    }
+
     // Main animation loop
     function animate() {
       requestAnimationFrame(animate);
@@ -175,6 +206,13 @@
       renderer.render(scene, camera);
     }
     animate();
+
+    // Adjust for screen resizing
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   </script>
 </body>
 </html>
