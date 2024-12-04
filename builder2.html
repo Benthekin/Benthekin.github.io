@@ -3,231 +3,223 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enhanced Minecraft-like Game</title>
+  <title>Minecraft-like Game with Joystick and Button Controls</title>
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
 
-    /* UI Styles */
-    #joystick-container {
+    /* Joystick styling */
+    .joystick-container {
       position: fixed;
-      bottom: 20px;
       left: 20px;
+      bottom: 20px;
       width: 100px;
       height: 100px;
-      background: rgba(200, 200, 200, 0.5);
+      background: rgba(0, 0, 0, 0.7);
       border-radius: 50%;
-      touch-action: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    #inventory {
+    .joystick {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* Button styling */
+    .button-container {
       position: fixed;
       bottom: 20px;
       right: 20px;
       display: flex;
-      gap: 5px;
+      flex-direction: column;
+      gap: 10px;
     }
-    .inventory-item {
+    .button {
       width: 50px;
       height: 50px;
-      background-color: lightgray;
-      border: 2px solid black;
-      cursor: pointer;
-    }
-    #jump-button {
-      position: fixed;
-      bottom: 100px;
-      left: 60px;
-      width: 80px;
-      height: 80px;
-      background-color: orange;
-      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 5px;
       text-align: center;
-      line-height: 80px;
-      color: white;
-      font-size: 20px;
+      line-height: 50px;
+      font-size: 24px;
       cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <div id="joystick-container"></div>
-  <div id="jump-button">Jump</div>
-  <div id="inventory"></div>
-  
+  <!-- Joystick -->
+  <div class="joystick-container" id="joystickContainer">
+    <div class="joystick" id="joystick"></div>
+  </div>
+
+  <!-- Buttons for actions -->
+  <div class="button-container">
+    <div class="button" id="placeButton">⬆️</div>
+    <div class="button" id="breakButton">⬇️</div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
-    // Basic Three.js setup
+    // Scene, Camera, Renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Lighting setup
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(5, 10, 7.5).normalize();
-    scene.add(ambientLight);
     scene.add(directionalLight);
 
+    // Camera position
+    camera.position.set(0, 20, 30);
+    camera.lookAt(0, 0, 0);
+
     // Inventory setup
-    const inventoryContainer = document.getElementById('inventory');
     const blockTypes = [
-      { color: 0x228B22, name: "grass" },
-      { color: 0x8B4513, name: "dirt" },
-      { color: 0xFFFFFF, name: "snow" },
-      { color: 0xFF0000, name: "delete" },
-      { color: 0x8B0000, name: "wood" },
-      { color: 0xFFFF00, name: "stone" },
-      { color: 0x0000FF, name: "water" },
-      { color: 0xA52A2A, name: "sand" },
+      { color: 0x00ff00, name: 'Grass' },
+      { color: 0x8B4513, name: 'Dirt' },
+      { color: 0x808080, name: 'Stone' },
+      { color: 0xffd700, name: 'Sand' },
+      { color: 0x87ceeb, name: 'Water' }
     ];
     let selectedBlockType = blockTypes[0];
 
-    blockTypes.forEach((block, index) => {
-      const item = document.createElement('div');
-      item.className = 'inventory-item';
-      item.style.backgroundColor = `#${block.color.toString(16)}`;
-      item.onclick = () => selectBlock(index);
-      inventoryContainer.appendChild(item);
+    // Joystick controls
+    const joystickContainer = document.getElementById("joystickContainer");
+    const joystick = document.getElementById("joystick");
+    let joystickPosition = { x: 0, y: 0 };
+    let isJoystickActive = false;
+
+    joystick.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      isJoystickActive = true;
+      const touch = e.touches[0];
+      joystickPosition.x = touch.clientX - joystickContainer.offsetLeft;
+      joystickPosition.y = touch.clientY - joystickContainer.offsetTop;
     });
 
-    function selectBlock(index) {
-      selectedBlockType = blockTypes[index];
-    }
-
-    // Joystick setup
-    const joystick = document.getElementById('joystick-container');
-    let joystickOffset = { x: 0, y: 0 };
-    let isDragging = false;
-
-    joystick.addEventListener('pointerdown', () => isDragging = true);
-    window.addEventListener('pointerup', () => { isDragging = false; joystickOffset = { x: 0, y: 0 }; });
-    window.addEventListener('pointermove', (event) => {
-      if (!isDragging) return;
-      joystickOffset = { x: event.clientX - 50, y: event.clientY - 50 };
-    });
-
-    // Jump button
-    const jumpButton = document.getElementById('jump-button');
-    let jumpVelocity = 0;
-    let isOnGround = false;
-    jumpButton.addEventListener('pointerdown', () => {
-      if (isOnGround) jumpVelocity = 0.5;
-      isOnGround = false;
-    });
-
-    // Camera rotation (mimicking Minecraft Pocket Edition)
-    let cameraRotation = { x: 0, y: 0 };
-    const rotationSpeed = 0.002;
-    window.addEventListener('pointermove', (event) => {
-      if (event.buttons === 1) {
-        cameraRotation.x -= event.movementY * rotationSpeed;
-        cameraRotation.y -= event.movementX * rotationSpeed;
-        camera.rotation.set(cameraRotation.x, cameraRotation.y, 0);
+    joystick.addEventListener("touchmove", (e) => {
+      if (isJoystickActive) {
+        const touch = e.touches[0];
+        joystickPosition.x = touch.clientX - joystickContainer.offsetLeft;
+        joystickPosition.y = touch.clientY - joystickContainer.offsetTop;
+        joystick.style.transform = `translate(${joystickPosition.x - 25}px, ${joystickPosition.y - 25}px)`;
       }
     });
 
-    // Player movement
+    joystick.addEventListener("touchend", () => {
+      isJoystickActive = false;
+      joystick.style.transform = 'translate(0, 0)';
+    });
+
+    // Handle movement based on joystick position
     function updateMovement() {
-      const speed = 0.1;
-      camera.position.x += joystickOffset.x * speed * 0.01;
-      camera.position.z += joystickOffset.y * speed * 0.01;
+      if (isJoystickActive) {
+        let xMove = (joystickPosition.x - 50) / 50;
+        let zMove = (joystickPosition.y - 50) / 50;
 
-      jumpVelocity += -0.02;  // Gravity
-      camera.position.y += jumpVelocity;
-      if (camera.position.y < 5) { camera.position.y = 5; jumpVelocity = 0; isOnGround = true; }
+        camera.position.x += xMove;
+        camera.position.z += zMove;
+
+        // Keep the player within bounds
+        camera.position.x = Math.max(Math.min(camera.position.x, 20), -20);
+        camera.position.z = Math.max(Math.min(camera.position.z, 20), -20);
+      }
     }
 
-    // Advanced terrain generation with multiple biomes and Perlin Noise
-    const terrainWidth = 256;
-    const terrainHeight = 256;
-    const terrainScale = 0.1;
-    const chunkHeight = 10;
-    const loadedChunks = new Set();
+    // Button Controls: Place and Break blocks
+    const placeButton = document.getElementById("placeButton");
+    const breakButton = document.getElementById("breakButton");
 
-    function generatePerlinNoise(width, height, scale = 1) {
-      const noise = [];
-      for (let x = 0; x < width; x++) {
-        noise[x] = [];
-        for (let y = 0; y < height; y++) {
-          noise[x][y] = (Math.sin(x * scale) + Math.cos(y * scale)) * Math.random();
+    placeButton.addEventListener("click", () => {
+      placeBlock();
+    });
+
+    breakButton.addEventListener("click", () => {
+      breakBlock();
+    });
+
+    // Terrain Generation
+    const terrainWidth = 20;
+    const terrainDepth = 20;
+    const blockSize = 1;
+    const blocks = [];
+
+    function createBlock(x, y, z, color, isTerrain = true) {
+      const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+      const material = new THREE.MeshLambertMaterial({ color });
+      const block = new THREE.Mesh(geometry, material);
+      block.position.set(x, y, z);
+      block.name = isTerrain ? 'terrain' : 'placed';
+      scene.add(block);
+      blocks.push(block);
+      return block;
+    }
+
+    function generateTerrain() {
+      for (let i = -terrainWidth / 2; i < terrainWidth / 2; i++) {
+        for (let j = -terrainDepth / 2; j < terrainDepth / 2; j++) {
+          const height = Math.floor(Math.random() * 5); // Random heights
+          for (let k = 0; k <= height; k++) {
+            let color;
+            if (k === height) color = 0x00ff00; // Grass on top
+            else if (k > height - 2) color = 0x8B4513; // Dirt layer
+            else color = 0x808080; // Stone below
+            createBlock(i, k, j, color);
+          }
         }
       }
-      return noise;
+    }
+    generateTerrain();
+
+    // Block Breaking & Placement
+    const raycaster = new THREE.Raycaster();
+    const touch = new THREE.Vector2();
+
+    function placeBlock() {
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      if (intersects.length > 0) {
+        const selectedObject = intersects[0].object;
+        const pos = intersects[0].point.clone().floor().addScalar(0.5);
+        createBlock(pos.x, pos.y, pos.z, selectedBlockType.color, false);
+      }
     }
 
-    function generateTerrain(xStart, zStart) {
-      const chunkKey = `${xStart},${zStart}`;
-      if (loadedChunks.has(chunkKey)) return;
-
-      const noise = generatePerlinNoise(terrainWidth, terrainHeight, terrainScale);
-
-      for (let x = 0; x < terrainWidth; x++) {
-        for (let z = 0; z < terrainHeight; z++) {
-          const height = Math.floor(noise[x][z] * chunkHeight);
-          for (let y = 0; y <= height; y++) {
-            const blockColor = getBlockColorBasedOnHeight(y, height);
-            createBlock(x + xStart, y, z + zStart, blockColor);
-          }
-
-          // Add trees in the biome
-          if (height > 5 && Math.random() < 0.05) {
-            createTree(x + xStart, height + 1, z + zStart);
-          }
-
-          // Add lakes or water
-          if (height < 3 && Math.random() < 0.03) {
-            createWater(x + xStart, height, z + zStart);
-          }
+    function breakBlock() {
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      if (intersects.length > 0) {
+        const selectedObject = intersects[0].object;
+        if (selectedObject.name === "terrain") {
+          scene.remove(selectedObject);
+          const index = blocks.indexOf(selectedObject);
+          if (index > -1) blocks.splice(index, 1); // Remove block from array
         }
       }
-
-      loadedChunks.add(chunkKey);
-    }
-
-    function getBlockColorBasedOnHeight(y, height) {
-      if (y === height) return 0x228B22; // Grass on top
-      if (y < height - 2) return 0x8B4513; // Dirt below
-      return 0x8B0000; // Stone at the bottom
-    }
-
-    // Create a tree (simple model)
-    function createTree(x, y, z) {
-      const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.5, 3);
-      const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-      trunk.position.set(x, y, z);
-      scene.add(trunk);
-
-      const foliageGeometry = new THREE.SphereGeometry(1, 8, 8);
-      const foliageMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
-      const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-      foliage.position.set(x, y + 2, z);
-      scene.add(foliage);
-    }
-
-    // Create water
-    function createWater(x, y, z) {
-      const waterGeometry = new THREE.BoxGeometry(1, 0.2, 1);
-      const waterMaterial = new THREE.MeshLambertMaterial({ color: 0x1E90FF, opacity: 0.5, transparent: true });
-      const water = new THREE.Mesh(waterGeometry, waterMaterial);
-      water.position.set(x, y, z);
-      scene.add(water);
     }
 
     // Main animation loop
     function animate() {
-      updateMovement();
-      generateTerrain(Math.floor(camera.position.x / terrainWidth) * terrainWidth, Math.floor(camera.position.z / terrainHeight) * terrainHeight);
-      renderer.render(scene, camera);
       requestAnimationFrame(animate);
+      updateMovement();
+      raycaster.setFromCamera(touch, camera);
+      renderer.render(scene, camera);
     }
-
-    // Initialize camera position and start animation
-    camera.position.set(0, 5, 10);
-    camera.lookAt(0, 5, 0);
     animate();
+
+    // Adjust for screen resizing
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   </script>
 </body>
 </html>
