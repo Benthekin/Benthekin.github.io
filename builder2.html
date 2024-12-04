@@ -3,56 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Game with Joystick, Inventory, and Jump</title>
+  <title>3D Minecraft-like Game with Jumping and Infinite Terrain</title>
   <style>
     body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
-    
-    /* UI styles */
-    #joystick-container {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      width: 100px;
-      height: 100px;
-      background: rgba(200, 200, 200, 0.5);
-      border-radius: 50%;
-      touch-action: none;
-    }
-    #inventory {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      display: flex;
-      gap: 5px;
-    }
-    .inventory-item {
-      width: 50px;
-      height: 50px;
-      background-color: lightgray;
-      border: 2px solid black;
-    }
-    #jump-button {
-      position: fixed;
-      bottom: 100px;
-      left: 60px;
-      width: 80px;
-      height: 80px;
-      background-color: orange;
-      border-radius: 50%;
-      text-align: center;
-      line-height: 80px;
-      color: white;
-      font-size: 20px;
-      touch-action: none;
-    }
   </style>
 </head>
 <body>
-  <div id="joystick-container"></div>
-  <div id="jump-button">Jump</div>
-  <div id="inventory"></div>
-  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     // Basic Three.js setup
@@ -62,53 +18,99 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Inventory setup
-    const inventoryContainer = document.getElementById('inventory');
-    const blockTypes = [{ color: 0x228B22 }, { color: 0x8B4513 }, { color: 0xFFFFFF }];
-    
-    blockTypes.forEach((block, index) => {
-      const item = document.createElement('div');
-      item.className = 'inventory-item';
-      item.style.backgroundColor = `#${block.color.toString(16)}`;
-      item.onclick = () => selectBlock(index);
-      inventoryContainer.appendChild(item);
-    });
+    // Lighting setup
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 7.5).normalize();
+    scene.add(ambientLight);
+    scene.add(directionalLight);
 
-    let selectedBlockType = blockTypes[0];
-    function selectBlock(index) { selectedBlockType = blockTypes[index]; }
+    // Player variables
+    let playerVelocity = { x: 0, y: 0, z: 0 };
+    const gravity = -0.02;
+    let isOnGround = false;
 
-    // Joystick setup
-    const joystick = document.getElementById('joystick-container');
-    let joystickOffset = { x: 0, y: 0 };
-    let isDragging = false;
+    // Camera position and controls
+    camera.position.set(0, 5, 10);
+    camera.lookAt(0, 0, 0);
 
-    joystick.addEventListener('pointerdown', () => isDragging = true);
-    window.addEventListener('pointerup', () => { isDragging = false; joystickOffset = { x: 0, y: 0 }; });
-    window.addEventListener('pointermove', (event) => {
-      if (!isDragging) return;
-      joystickOffset = { x: event.clientX - 50, y: event.clientY - 50 };
-    });
+    // Terrain generation parameters
+    const terrainSize = 16;
+    const chunkHeight = 5;
+    const loadedChunks = new Set();
 
-    // Jump button
-    const jumpButton = document.getElementById('jump-button');
-    let jumpVelocity = 0;
-    jumpButton.addEventListener('pointerdown', () => { if (camera.position.y <= 5) jumpVelocity = 0.5; });
+    // Function to create blocks
+    function createBlock(x, y, z, color) {
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const material = new THREE.MeshLambertMaterial({ color });
+      const block = new THREE.Mesh(geometry, material);
+      block.position.set(x, y, z);
+      scene.add(block);
+      return block;
+    }
 
-    // Player movement
+    // Function to generate terrain
+    function generateTerrain(xStart, zStart) {
+      const chunkKey = `${xStart},${zStart}`;
+      if (loadedChunks.has(chunkKey)) return;
+
+      for (let x = 0; x < terrainSize; x++) {
+        for (let z = 0; z < terrainSize; z++) {
+          const height = Math.floor(Math.random() * chunkHeight);
+          for (let y = 0; y <= height; y++) {
+            createBlock(x + xStart, y, z + zStart, y === height ? 0x228B22 : 0x8B4513); // Grass on top, dirt below
+          }
+        }
+      }
+      loadedChunks.add(chunkKey);
+    }
+
+    // Player movement and jumping
+    const keys = {};
+    window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+    window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+
     function updateMovement() {
-      const speed = 0.1;
-      camera.position.x += joystickOffset.x * speed * 0.01;
-      camera.position.z += joystickOffset.y * speed * 0.01;
+      const speed = 0.2;
 
-      jumpVelocity += -0.02;  // Gravity
-      camera.position.y += jumpVelocity;
-      if (camera.position.y < 5) { camera.position.y = 5; jumpVelocity = 0; }
+      if (keys['w']) camera.position.z -= speed;
+      if (keys['s']) camera.position.z += speed;
+      if (keys['a']) camera.position.x -= speed;
+      if (keys['d']) camera.position.x += speed;
+      
+      if (keys[' ']) {  // Jumping
+        if (isOnGround) {
+          playerVelocity.y = 0.5;  // Jump impulse
+          isOnGround = false;
+        }
+      }
+      playerVelocity.y += gravity;  // Apply gravity
+      camera.position.y += playerVelocity.y;
+
+      // Check for ground collision
+      if (camera.position.y < 5) {
+        camera.position.y = 5;
+        playerVelocity.y = 0;
+        isOnGround = true;
+      }
+    }
+
+    // Infinite terrain loading based on player position
+    function updateTerrain() {
+      const playerChunkX = Math.floor(camera.position.x / terrainSize) * terrainSize;
+      const playerChunkZ = Math.floor(camera.position.z / terrainSize) * terrainSize;
+      generateTerrain(playerChunkX, playerChunkZ);
+      generateTerrain(playerChunkX - terrainSize, playerChunkZ);
+      generateTerrain(playerChunkX + terrainSize, playerChunkZ);
+      generateTerrain(playerChunkX, playerChunkZ - terrainSize);
+      generateTerrain(playerChunkX, playerChunkZ + terrainSize);
     }
 
     // Animation loop
     function animate() {
       requestAnimationFrame(animate);
       updateMovement();
+      updateTerrain();
       renderer.render(scene, camera);
     }
 
