@@ -369,5 +369,23 @@
       const deltaX = (touch.clientX - joystickOffset.x) / 10;
       const deltaY = (touch.clientY - joystickOffset.y) / 10;
 
-      camera.position.x +
+      camera.position.x += deltaX;
+      camera.position.z += deltaY;
+      joystickOffset.x = touch.clientX;
+      joystickOffset.y = touch.clientY;
+    });
+
+    joystick.addEventListener("touchend", () => {
+      joystickActive = false;
+    });
+
+    // Main Animation Loop
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
 
