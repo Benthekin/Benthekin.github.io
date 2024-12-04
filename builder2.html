@@ -3,64 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Joystick and Button Controls</title>
+  <title>Minecraft-like Game with Multiple Block Colors</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
 
-    /* Joystick styling */
-    .joystick-container {
-      position: fixed;
-      left: 20px;
-      bottom: 20px;
-      width: 100px;
-      height: 100px;
-      background: rgba(0, 0, 0, 0.7);
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .joystick {
-      width: 50px;
-      height: 50px;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: 50%;
-      cursor: pointer;
-    }
-
-    /* Button styling */
-    .button-container {
+    /* Inventory styling */
+    .inventory {
       position: fixed;
       bottom: 20px;
-      right: 20px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .button {
-      width: 50px;
-      height: 50px;
-      background: rgba(255, 255, 255, 0.7);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 5px;
       border-radius: 5px;
-      text-align: center;
-      line-height: 50px;
-      font-size: 24px;
+    }
+    .block-btn {
+      width: 50px;
+      height: 50px;
+      margin: 0 5px;
       cursor: pointer;
+      border: 2px solid white;
+    }
+    .selected {
+      border: 4px solid yellow;
     }
   </style>
 </head>
 <body>
-  <!-- Joystick -->
-  <div class="joystick-container" id="joystickContainer">
-    <div class="joystick" id="joystick"></div>
-  </div>
-
-  <!-- Buttons for actions -->
-  <div class="button-container">
-    <div class="button" id="placeButton">⬆️</div>
-    <div class="button" id="breakButton">⬇️</div>
-  </div>
+  <!-- Inventory UI -->
+  <div class="inventory" id="inventory"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
@@ -87,64 +60,25 @@
       { color: 0x00ff00, name: 'Grass' },
       { color: 0x8B4513, name: 'Dirt' },
       { color: 0x808080, name: 'Stone' },
-      { color: 0xffd700, name: 'Sand' },
-      { color: 0x87ceeb, name: 'Water' }
+      { color: 0xffd700, name: 'Gold' },
+      { color: 0x0000ff, name: 'Water' },
+      { color: 0xff0000, name: 'Red Block' },
+      { color: 0xffffff, name: 'White Block' }
     ];
     let selectedBlockType = blockTypes[0];
 
-    // Joystick controls
-    const joystickContainer = document.getElementById("joystickContainer");
-    const joystick = document.getElementById("joystick");
-    let joystickPosition = { x: 0, y: 0 };
-    let isJoystickActive = false;
-
-    joystick.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      isJoystickActive = true;
-      const touch = e.touches[0];
-      joystickPosition.x = touch.clientX - joystickContainer.offsetLeft;
-      joystickPosition.y = touch.clientY - joystickContainer.offsetTop;
-    });
-
-    joystick.addEventListener("touchmove", (e) => {
-      if (isJoystickActive) {
-        const touch = e.touches[0];
-        joystickPosition.x = touch.clientX - joystickContainer.offsetLeft;
-        joystickPosition.y = touch.clientY - joystickContainer.offsetTop;
-        joystick.style.transform = `translate(${joystickPosition.x - 25}px, ${joystickPosition.y - 25}px)`;
-      }
-    });
-
-    joystick.addEventListener("touchend", () => {
-      isJoystickActive = false;
-      joystick.style.transform = 'translate(0, 0)';
-    });
-
-    // Handle movement based on joystick position
-    function updateMovement() {
-      if (isJoystickActive) {
-        let xMove = (joystickPosition.x - 50) / 50;
-        let zMove = (joystickPosition.y - 50) / 50;
-
-        camera.position.x += xMove;
-        camera.position.z += zMove;
-
-        // Keep the player within bounds
-        camera.position.x = Math.max(Math.min(camera.position.x, 20), -20);
-        camera.position.z = Math.max(Math.min(camera.position.z, 20), -20);
-      }
-    }
-
-    // Button Controls: Place and Break blocks
-    const placeButton = document.getElementById("placeButton");
-    const breakButton = document.getElementById("breakButton");
-
-    placeButton.addEventListener("click", () => {
-      placeBlock();
-    });
-
-    breakButton.addEventListener("click", () => {
-      breakBlock();
+    const inventoryContainer = document.getElementById('inventory');
+    blockTypes.forEach((block, index) => {
+      const button = document.createElement('div');
+      button.classList.add('block-btn');
+      button.style.backgroundColor = `#${block.color.toString(16).padStart(6, '0')}`;
+      if (index === 0) button.classList.add('selected'); // Highlight default
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.block-btn').forEach(btn => btn.classList.remove('selected'));
+        button.classList.add('selected');
+        selectedBlockType = block;
+      });
+      inventoryContainer.appendChild(button);
     });
 
     // Terrain Generation
@@ -182,25 +116,29 @@
 
     // Block Breaking & Placement
     const raycaster = new THREE.Raycaster();
-    const touch = new THREE.Vector2();
+    const mouse = new THREE.Vector2();
 
-    function placeBlock() {
+    window.addEventListener('click', onScreenClick);
+
+    function onScreenClick(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(scene.children, true);
+
       if (intersects.length > 0) {
         const selectedObject = intersects[0].object;
-        const pos = intersects[0].point.clone().floor().addScalar(0.5);
-        createBlock(pos.x, pos.y, pos.z, selectedBlockType.color, false);
-      }
-    }
 
-    function breakBlock() {
-      const intersects = raycaster.intersectObjects(scene.children, true);
-      if (intersects.length > 0) {
-        const selectedObject = intersects[0].object;
         if (selectedObject.name === "terrain") {
+          // Block breaking
           scene.remove(selectedObject);
           const index = blocks.indexOf(selectedObject);
           if (index > -1) blocks.splice(index, 1); // Remove block from array
+        } else {
+          // Place a new block
+          const pos = intersects[0].point.clone().floor().addScalar(0.5);
+          createBlock(pos.x, pos.y, pos.z, selectedBlockType.color, false);
         }
       }
     }
@@ -208,8 +146,6 @@
     // Main animation loop
     function animate() {
       requestAnimationFrame(animate);
-      updateMovement();
-      raycaster.setFromCamera(touch, camera);
       renderer.render(scene, camera);
     }
     animate();
