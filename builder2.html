@@ -3,98 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Joystick, Mobs, Biomes, and Infinite Terrain</title>
+  <title>Minecraft-like Game with Camera Control</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
-
-    /* Joystick styling */
-    .joystick-container {
-      position: fixed;
-      left: 20px;
-      bottom: 20px;
-      width: 100px;
-      height: 100px;
-      background: rgba(0, 0, 0, 0.7);
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .joystick {
-      width: 50px;
-      height: 50px;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: 50%;
-      cursor: pointer;
-    }
-
-    /* Button styling */
-    .button-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .button {
-      width: 50px;
-      height: 50px;
-      background: rgba(255, 255, 255, 0.7);
-      border-radius: 5px;
-      text-align: center;
-      line-height: 50px;
-      font-size: 24px;
-      cursor: pointer;
-    }
-
-    /* Inventory styling */
-    .inventory {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 5px;
-      border-radius: 5px;
-    }
-    .block-btn {
-      width: 40px;
-      height: 40px;
-      margin: 0 5px;
-      cursor: pointer;
-      border: 1px solid #fff;
-    }
-    .selected {
-      border: 3px solid yellow;
-    }
-    .delete-btn {
-      color: red;
-      font-size: 24px;
-      font-weight: bold;
-      line-height: 40px;
-      text-align: center;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
-  <!-- Joystick -->
-  <div class="joystick-container" id="joystickContainer">
-    <div class="joystick" id="joystick"></div>
-  </div>
-
-  <!-- Buttons for actions -->
-  <div class="button-container">
-    <div class="button" id="placeButton">⬆️</div>
-    <div class="button" id="breakButton">⬇️</div>
-  </div>
-
-  <!-- Inventory for tools -->
-  <div class="inventory" id="inventory"></div>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     // Scene, Camera, Renderer
@@ -105,160 +20,102 @@
     document.body.appendChild(renderer.domElement);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+    const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1); // Sun light
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(5, 10, 7.5).normalize();
     scene.add(directionalLight);
 
     // Camera position
-    camera.position.set(0, 20, 30);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0, 5, 10);
 
-    // Inventory setup
-    const blockTypes = [
-      { color: 0x00ff00, name: 'Grass' },
-      { color: 0x8B4513, name: 'Dirt' },
-      { color: 0x808080, name: 'Stone' },
-      { color: 0xffd700, name: 'Sand' },
-      { color: 0x87ceeb, name: 'Water' },
-      { deleteTool: true, name: 'Delete Tool' } // Red X delete tool
-    ];
-    let selectedBlockType = blockTypes[0]; // Default is grass
+    // Controls setup
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let yaw = 0; // Horizontal rotation (left-right)
+    let pitch = 0; // Vertical rotation (up-down)
 
-    // Inventory creation
-    const inventoryContainer = document.getElementById('inventory');
-    blockTypes.forEach((block, index) => {
-      const button = document.createElement('div');
-      button.classList.add('block-btn');
-      if (block.deleteTool) {
-        button.classList.add('delete-btn');
-        button.innerHTML = 'X'; // Red X delete button
-      } else {
-        button.style.backgroundColor = `#${block.color.toString(16).padStart(6, '0')}`;
-      }
-      if (index === 0) button.classList.add('selected'); // Highlight default
-      button.addEventListener('click', () => {
-        document.querySelectorAll('.block-btn').forEach(btn => btn.classList.remove('selected'));
-        button.classList.add('selected');
-        selectedBlockType = block;
-      });
-      inventoryContainer.appendChild(button);
+    // Handle mouse and touch movement
+    document.addEventListener('mousedown', (event) => {
+      isDragging = true;
+      previousMousePosition.x = event.clientX;
+      previousMousePosition.y = event.clientY;
     });
 
-    // Joystick controls
-    const joystickContainer = document.getElementById("joystickContainer");
-    const joystick = document.getElementById("joystick");
-    let joystickPosition = { x: 0, y: 0 };
-    let isJoystickActive = false;
+    document.addEventListener('mousemove', (event) => {
+      if (isDragging) {
+        const deltaMove = {
+          x: event.clientX - previousMousePosition.x,
+          y: event.clientY - previousMousePosition.y,
+        };
 
-    joystick.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      isJoystickActive = true;
-      const touch = e.touches[0];
-      joystickPosition.x = touch.clientX - joystickContainer.offsetLeft;
-      joystickPosition.y = touch.clientY - joystickContainer.offsetTop;
-    });
+        yaw -= deltaMove.x * 0.005; // Adjust rotation speed
+        pitch -= deltaMove.y * 0.005;
 
-    joystick.addEventListener("touchmove", (e) => {
-      if (isJoystickActive) {
-        const touch = e.touches[0];
-        joystickPosition.x = touch.clientX - joystickContainer.offsetLeft;
-        joystickPosition.y = touch.clientY - joystickContainer.offsetTop;
-        joystick.style.transform = `translate(${joystickPosition.x - 25}px, ${joystickPosition.y - 25}px)`;
+        // Limit the pitch to avoid flipping
+        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+        // Update camera direction
+        camera.rotation.order = 'YXZ'; // Correct rotation order
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+
+        previousMousePosition.x = event.clientX;
+        previousMousePosition.y = event.clientY;
       }
     });
 
-    joystick.addEventListener("touchend", () => {
-      isJoystickActive = false;
-      joystick.style.transform = 'translate(0, 0)';
+    document.addEventListener('mouseup', () => { isDragging = false; });
+    document.addEventListener('mouseleave', () => { isDragging = false; });
+
+    // Touch events for iPad
+    document.addEventListener('touchstart', (event) => {
+      if (event.touches.length === 1) { // Single touch
+        isDragging = true;
+        previousMousePosition.x = event.touches[0].clientX;
+        previousMousePosition.y = event.touches[0].clientY;
+      }
     });
 
-    // Handle movement based on joystick position
-    function updateMovement() {
-      if (isJoystickActive) {
-        let xMove = (joystickPosition.x - 50) / 50;
-        let zMove = (joystickPosition.y - 50) / 50;
+    document.addEventListener('touchmove', (event) => {
+      if (isDragging && event.touches.length === 1) {
+        const deltaMove = {
+          x: event.touches[0].clientX - previousMousePosition.x,
+          y: event.touches[0].clientY - previousMousePosition.y,
+        };
 
-        camera.position.x += xMove;
-        camera.position.z += zMove;
+        yaw -= deltaMove.x * 0.005;
+        pitch -= deltaMove.y * 0.005;
 
-        // Keep the player within bounds
-        camera.position.x = Math.max(Math.min(camera.position.x, 20), -20);
-        camera.position.z = Math.max(Math.min(camera.position.z, 20), -20);
+        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+
+        camera.rotation.order = 'YXZ';
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+
+        previousMousePosition.x = event.touches[0].clientX;
+        previousMousePosition.y = event.touches[0].clientY;
       }
-    }
+    });
 
-    // Jumping logic
-    let isJumping = false;
-    let jumpVelocity = 0;
-    let gravity = -0.1; // Gravity strength
-    let jumpStrength = 2; // Jump height
-    let isGrounded = true;
+    document.addEventListener('touchend', () => { isDragging = false; });
 
-    function updateJumping() {
-      if (isJumping && isGrounded) {
-        jumpVelocity = jumpStrength;
-        isGrounded = false; // The player is no longer on the ground
-      }
+    // Simple cube as a reference object
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
 
-      if (!isGrounded) {
-        jumpVelocity += gravity; // Apply gravity
-        camera.position.y += jumpVelocity;
+    // Ground plane
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
 
-        // Stop falling when the player hits the ground
-        if (camera.position.y <= 1) {
-          camera.position.y = 1; // Keep the player on the ground
-          isGrounded = true;
-          jumpVelocity = 0;
-        }
-      }
-    }
-
-    // Infinite terrain generation with complex biomes
-    const chunkSize = 16;
-    const chunkHeight = 5;
-    const loadedChunks = new Map();
-
-    function getBiome(x, z) {
-      if (z < 0) return 'snow';
-      if (x < 0) return 'sand';
-      return 'grass';
-    }
-
-    // More complex biome generation with trees, sand, and snow
-    function generateTerrain(xStart, zStart) {
-      const chunkKey = `${xStart},${zStart}`;
-      if (loadedChunks.has(chunkKey)) return; // Avoid regenerating
-
-      for (let x = xStart; x < xStart + chunkSize; x++) {
-        for (let z = zStart; z < zStart + chunkSize; z++) {
-          const biome = getBiome(x, z);
-          let height = Math.floor(Math.random() * chunkHeight);
-
-          // Generate terrain blocks
-          for (let y = 0; y < height; y++) {
-            createBlock(x, y, z, biome);
-          }
-
-          // Add trees and bushes
-          if (biome === 'grass' && Math.random() > 0.95) createTree(x, height, z);
-          if (biome === 'sand' && Math.random() > 0.98) createBush(x, height, z);
-        }
-      }
-
-      loadedChunks.set(chunkKey, true);
-    }
-
-    // Day-Night Cycle logic (already implemented)
-
-    // Main render loop
+    // Animation loop
     function animate() {
       requestAnimationFrame(animate);
-      updateMovement();
-      updateJumping();
-      generateTerrain(Math.floor(camera.position.x / chunkSize) * chunkSize, Math.floor(camera.position.z / chunkSize) * chunkSize);
-      updateDayNightCycle();
       renderer.render(scene, camera);
     }
 
