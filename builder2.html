@@ -3,10 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Multiple Block Colors</title>
+  <title>Minecraft-like Game with Joystick Controls</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
+
+    /* Joystick styling */
+    .joystick-container {
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
+      width: 100px;
+      height: 100px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .joystick {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      cursor: pointer;
+    }
 
     /* Inventory styling */
     .inventory {
@@ -32,6 +53,11 @@
   </style>
 </head>
 <body>
+  <!-- Joystick -->
+  <div class="joystick-container" id="joystickContainer">
+    <div class="joystick" id="joystick"></div>
+  </div>
+
   <!-- Inventory UI -->
   <div class="inventory" id="inventory"></div>
 
@@ -52,7 +78,7 @@
     scene.add(directionalLight);
 
     // Camera position
-    camera.position.set(0, 20, 30);
+    camera.position.set(0, 10, 20);
     camera.lookAt(0, 0, 0);
 
     // Inventory setup
@@ -101,12 +127,9 @@
     function generateTerrain() {
       for (let i = -terrainWidth / 2; i < terrainWidth / 2; i++) {
         for (let j = -terrainDepth / 2; j < terrainDepth / 2; j++) {
-          const height = Math.floor(Math.random() * 5); // Random heights
+          const height = Math.floor(Math.random() * 5);
           for (let k = 0; k <= height; k++) {
-            let color;
-            if (k === height) color = 0x00ff00; // Grass on top
-            else if (k > height - 2) color = 0x8B4513; // Dirt layer
-            else color = 0x808080; // Stone below
+            let color = (k === height) ? 0x00ff00 : (k > height - 2) ? 0x8B4513 : 0x808080;
             createBlock(i, k, j, color);
           }
         }
@@ -114,48 +137,44 @@
     }
     generateTerrain();
 
-    // Block Breaking & Placement
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
+    // Joystick Movement
+    const joystick = document.getElementById('joystick');
+    let moveDirection = { x: 0, z: 0 };
+    let isJoystickActive = false;
 
-    window.addEventListener('click', onScreenClick);
+    joystick.addEventListener('touchstart', (e) => { isJoystickActive = true; });
+    joystick.addEventListener('touchend', () => {
+      isJoystickActive = false;
+      moveDirection = { x: 0, z: 0 };
+      joystick.style.transform = 'translate(0, 0)';
+    });
 
-    function onScreenClick(event) {
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    joystick.addEventListener('touchmove', (e) => {
+      if (isJoystickActive) {
+        const touch = e.touches[0];
+        const joystickRect = joystick.parentElement.getBoundingClientRect();
+        const dx = touch.clientX - joystickRect.left - joystickRect.width / 2;
+        const dz = touch.clientY - joystickRect.top - joystickRect.height / 2;
+        const maxDistance = 50;
 
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(scene.children, true);
-
-      if (intersects.length > 0) {
-        const selectedObject = intersects[0].object;
-
-        if (selectedObject.name === "terrain") {
-          // Block breaking
-          scene.remove(selectedObject);
-          const index = blocks.indexOf(selectedObject);
-          if (index > -1) blocks.splice(index, 1); // Remove block from array
-        } else {
-          // Place a new block
-          const pos = intersects[0].point.clone().floor().addScalar(0.5);
-          createBlock(pos.x, pos.y, pos.z, selectedBlockType.color, false);
-        }
+        moveDirection.x = Math.max(-1, Math.min(1, dx / maxDistance));
+        moveDirection.z = Math.max(-1, Math.min(1, dz / maxDistance));
+        joystick.style.transform = `translate(${dx}px, ${dz}px)`;
       }
+    });
+
+    function updateMovement() {
+      camera.position.x += moveDirection.x * 0.1;
+      camera.position.z += moveDirection.z * 0.1;
     }
 
     // Main animation loop
     function animate() {
       requestAnimationFrame(animate);
+      updateMovement();
       renderer.render(scene, camera);
     }
     animate();
-
-    // Adjust for screen resizing
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
   </script>
 </body>
 </html>
