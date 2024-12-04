@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Joystick, Block Placement, and Block Breaking</title>
+  <title>Minecraft-like Game with Joystick, Block Placement, Block Breaking, and Walking</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
@@ -78,7 +78,7 @@
     scene.add(directionalLight);
 
     // Camera position
-    camera.position.set(0, 10, 20);
+    camera.position.set(0, 5, 10);
     camera.lookAt(0, 0, 0);
 
     // Inventory setup
@@ -163,9 +163,26 @@
       }
     });
 
+    // Walking on the ground: gravity and collision detection
+    const gravity = -0.2;
+    let velocity = new THREE.Vector3(0, 0, 0);
+    const groundLevel = 0;
+
     function updateMovement() {
+      velocity.y += gravity; // Apply gravity
+
       camera.position.x += moveDirection.x * 0.1;
       camera.position.z += moveDirection.z * 0.1;
+
+      // Check if the camera is below the ground and reset its position
+      if (camera.position.y + velocity.y < groundLevel) {
+        velocity.y = 0;
+        camera.position.y = groundLevel; // Keep the camera on the ground
+      }
+
+      camera.position.y += velocity.y;
+
+      // Handle movement logic
     }
 
     // Block Placement and Breaking
