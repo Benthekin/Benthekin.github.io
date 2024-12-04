@@ -3,19 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minecraft-like Game with Terrain Generation</title>
+  <title>Minecraft-like Game with Joystick, Block Placement, Enhanced Terrain, and Camera Drag</title>
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { display: block; }
-    /* Additional UI styles omitted for brevity */
+
+    /* Joystick styling */
+    .joystick-container {
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
+      width: 100px;
+      height: 100px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .joystick {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    /* Inventory styling */
+    .inventory {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 5px;
+      border-radius: 5px;
+    }
+    .block-btn {
+      width: 50px;
+      height: 50px;
+      margin: 0 5px;
+      cursor: pointer;
+      border: 2px solid white;
+    }
+    .selected {
+      border: 4px solid yellow;
+    }
+
+    /* Jump button styling */
+    #jumpButton {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      background-color: #ffcc00;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      color: white;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <!-- Joystick and buttons omitted for brevity -->
+  <!-- Joystick -->
+  <div class="joystick-container" id="joystickContainer">
+    <div class="joystick" id="joystick"></div>
+  </div>
+
+  <!-- Inventory UI -->
+  <div class="inventory" id="inventory"></div>
+
+  <!-- Jump Button -->
+  <div id="jumpButton">Jump</div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
   <script>
-    // Scene setup
+    // Scene, Camera, Renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -23,59 +91,144 @@
     document.body.appendChild(renderer.domElement);
 
     // Lighting
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(10, 10, 10);
-    scene.add(light);
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 7.5).normalize();
+    scene.add(directionalLight);
 
-    // Player position
-    camera.position.set(0, 5, 0);
-    
-    // Terrain generation variables
-    const chunkSize = 16;
-    const blocks = new Map();  // Stores blocks by their coordinates
-    const simplex = new SimplexNoise();  // Noise generator
+    // Camera position
+    camera.position.set(0, 5, 10);
+    camera.lookAt(0, 0, 0);
 
-    function generateChunk(xOffset, zOffset) {
-      for (let x = 0; x < chunkSize; x++) {
-        for (let z = 0; z < chunkSize; z++) {
-          const worldX = x + xOffset;
-          const worldZ = z + zOffset;
-          const height = Math.floor(simplex.noise2D(worldX / 10, worldZ / 10) * 5 + 5);  // Height variation
+    // Inventory setup
+    const blockTypes = [
+      { color: 0x00ff00, name: 'Grass' },
+      { color: 0x8B4513, name: 'Dirt' },
+      { color: 0x808080, name: 'Stone' },
+      { color: 0xffd700, name: 'Gold' },
+      { color: 0x0000ff, name: 'Water' },
+      { color: 0xff0000, name: 'Red Block' },
+      { color: 0xffffff, name: 'White Block' }
+    ];
+    let selectedBlockType = blockTypes[0];
 
-          for (let y = 0; y <= height; y++) {
-            const positionKey = `${worldX},${y},${worldZ}`;
-            if (!blocks.has(positionKey)) {
-              const color = y === height ? 0x00ff00 : 0x8B4513;  // Grass on top, dirt below
-              createBlock(worldX, y, worldZ, color, positionKey);
-            }
+    const inventoryContainer = document.getElementById('inventory');
+    blockTypes.forEach((block, index) => {
+      const button = document.createElement('div');
+      button.classList.add('block-btn');
+      button.style.backgroundColor = `#${block.color.toString(16).padStart(6, '0')}`;
+      if (index === 0) button.classList.add('selected'); // Highlight default
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.block-btn').forEach(btn => btn.classList.remove('selected'));
+        button.classList.add('selected');
+        selectedBlockType = block;
+      });
+      inventoryContainer.appendChild(button);
+    });
+
+    // Enhanced Terrain Generation
+    const terrainWidth = 20;
+    const terrainDepth = 20;
+    const blockSize = 1;
+    const blocks = [];
+
+    function createBlock(x, y, z, color, isTerrain = true) {
+      const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+      const material = new THREE.MeshLambertMaterial({ color });
+      const block = new THREE.Mesh(geometry, material);
+      block.position.set(x, y, z);
+      block.name = isTerrain ? 'terrain' : 'placed';
+      scene.add(block);
+      blocks.push(block);
+      return block;
+    }
+
+    function generateTerrain() {
+      for (let i = -terrainWidth / 2; i < terrainWidth / 2; i++) {
+        for (let j = -terrainDepth / 2; j < terrainDepth / 2; j++) {
+          const height = Math.floor(Math.random() * 5);
+          for (let k = 0; k <= height; k++) {
+            let color = (k === height) ? 0x00ff00 : (k > height - 2) ? 0x8B4513 : 0x808080;
+            createBlock(i, k, j, color);
           }
         }
       }
     }
+    generateTerrain();
 
-    function createBlock(x, y, z, color, positionKey) {
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const material = new THREE.MeshLambertMaterial({ color });
-      const block = new THREE.Mesh(geometry, material);
-      block.position.set(x, y, z);
-      scene.add(block);
-      blocks.set(positionKey, block);
+    // Joystick Movement
+    const joystick = document.getElementById('joystick');
+    let moveDirection = { x: 0, z: 0 };
+    let isJoystickActive = false;
+
+    joystick.addEventListener('touchstart', (e) => { isJoystickActive = true; });
+    joystick.addEventListener('touchend', () => {
+      isJoystickActive = false;
+      moveDirection = { x: 0, z: 0 };
+      joystick.style.transform = 'translate(0, 0)';
+    });
+
+    joystick.addEventListener('touchmove', (e) => {
+      if (isJoystickActive) {
+        const touch = e.touches[0];
+        const joystickRect = joystick.parentElement.getBoundingClientRect();
+        const dx = touch.clientX - joystickRect.left - joystickRect.width / 2;
+        const dz = touch.clientY - joystickRect.top - joystickRect.height / 2;
+        const maxDistance = 50;
+
+        moveDirection.x = Math.max(-1, Math.min(1, dx / maxDistance));
+        moveDirection.z = Math.max(-1, Math.min(1, dz / maxDistance));
+        joystick.style.transform = `translate(${dx}px, ${dz}px)`;
+      }
+    });
+
+    // Camera Drag (Rotating the camera like Roblox)
+    let isDragging = false;
+    let previousTouch = { x: 0, y: 0 };
+
+    // Handle touch start event
+    renderer.domElement.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      previousTouch.x = e.touches[0].clientX;
+      previousTouch.y = e.touches[0].clientY;
+    });
+
+    // Handle touch move event
+    renderer.domElement.addEventListener('touchmove', (e) => {
+      if (isDragging) {
+        const deltaX = e.touches[0].clientX - previousTouch.x;
+        const deltaY = e.touches[0].clientY - previousTouch.y;
+
+        camera.rotation.y -= deltaX * 0.005;  // Rotate around Y-axis (horizontal movement)
+        camera.rotation.x -= deltaY * 0.005;  // Rotate around X-axis (vertical movement)
+        
+        previousTouch.x = e.touches[0].clientX;
+        previousTouch.y = e.touches[0].clientY;
+      }
+    });
+
+    // Handle touch end event
+    renderer.domElement.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+
+    // Block Placement
+    function placeBlock() {
+      const blockColor = selectedBlockType.color;
+      const block = createBlock(0, 0, 0, blockColor, false);
+      block.position.set(camera.position.x, camera.position.y - 1, camera.position.z - 2);
     }
 
-    // Initial generation
-    generateChunk(-chunkSize / 2, -chunkSize / 2);
-
-    // Player movement and chunk loading
-    function updateWorld() {
-      const playerChunkX = Math.floor(camera.position.x / chunkSize) * chunkSize;
-      const playerChunkZ = Math.floor(camera.position.z / chunkSize) * chunkSize;
-      generateChunk(playerChunkX, playerChunkZ);  // Load chunk around player
-    }
-
-    // Animation loop
+    // Update loop
     function animate() {
       requestAnimationFrame(animate);
-      updateWorld();
+
+      // Camera movement (joystick)
+      camera.position.x += moveDirection.x * 0.1;
+      camera.position.z += moveDirection.z * 0.1;
+
+      // Render scene
       renderer.render(scene, camera);
     }
     animate();
