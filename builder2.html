@@ -7,7 +7,7 @@
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
-    
+
     /* UI Styles */
     #joystick-container {
       position: fixed;
@@ -76,9 +76,11 @@
       { color: 0x228B22, name: "grass" },
       { color: 0x8B4513, name: "dirt" },
       { color: 0xFFFFFF, name: "snow" },
-      { color: 0xFF0000, name: "delete" }, // Red X for delete tool
+      { color: 0xFF0000, name: "delete" },
       { color: 0x8B0000, name: "wood" },
-      { color: 0xFFFF00, name: "stone" }
+      { color: 0xFFFF00, name: "stone" },
+      { color: 0x0000FF, name: "water" },
+      { color: 0xA52A2A, name: "sand" },
     ];
     let selectedBlockType = blockTypes[0];
 
@@ -111,7 +113,7 @@
     let jumpVelocity = 0;
     let isOnGround = false;
     jumpButton.addEventListener('pointerdown', () => {
-      if (isOnGround) jumpVelocity = 0.5; // Jump impulse
+      if (isOnGround) jumpVelocity = 0.5;
       isOnGround = false;
     });
 
@@ -137,85 +139,95 @@
       if (camera.position.y < 5) { camera.position.y = 5; jumpVelocity = 0; isOnGround = true; }
     }
 
-    // Block breaking mechanism
-    function breakBlockAt(x, y, z) {
-      const raycaster = new THREE.Raycaster();
-      raycaster.ray.origin.set(camera.position.x, camera.position.y, camera.position.z);
-      raycaster.ray.direction.set(x - camera.position.x, y - camera.position.y, z - camera.position.z);
-      
-      const intersects = raycaster.intersectObjects(scene.children);
-      if (intersects.length > 0) {
-        const block = intersects[0].object;
-        scene.remove(block);
-      }
-    }
-
-    // Block placing
-    function placeBlockAt(x, y, z, color) {
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const material = new THREE.MeshLambertMaterial({ color });
-      const block = new THREE.Mesh(geometry, material);
-      block.position.set(x, y, z);
-      scene.add(block);
-    }
-
-    // Terrain generation and chunk management
-    const terrainSize = 16;
-    const chunkHeight = 5;
+    // Advanced terrain generation with multiple biomes and Perlin Noise
+    const terrainWidth = 256;
+    const terrainHeight = 256;
+    const terrainScale = 0.1;
+    const chunkHeight = 10;
     const loadedChunks = new Set();
+
+    function generatePerlinNoise(width, height, scale = 1) {
+      const noise = [];
+      for (let x = 0; x < width; x++) {
+        noise[x] = [];
+        for (let y = 0; y < height; y++) {
+          noise[x][y] = (Math.sin(x * scale) + Math.cos(y * scale)) * Math.random();
+        }
+      }
+      return noise;
+    }
 
     function generateTerrain(xStart, zStart) {
       const chunkKey = `${xStart},${zStart}`;
       if (loadedChunks.has(chunkKey)) return;
 
-      for (let x = 0; x < terrainSize; x++) {
-        for (let z = 0; z < terrainSize; z++) {
-          const height = Math.floor(Math.random() * chunkHeight);
+      const noise = generatePerlinNoise(terrainWidth, terrainHeight, terrainScale);
+
+      for (let x = 0; x < terrainWidth; x++) {
+        for (let z = 0; z < terrainHeight; z++) {
+          const height = Math.floor(noise[x][z] * chunkHeight);
           for (let y = 0; y <= height; y++) {
-            createBlock(x + xStart, y, z + zStart, y === height ? 0x228B22 : 0x8B4513); // Grass on top, dirt below
+            const blockColor = getBlockColorBasedOnHeight(y, height);
+            createBlock(x + xStart, y, z + zStart, blockColor);
+          }
+
+          // Add trees in the biome
+          if (height > 5 && Math.random() < 0.05) {
+            createTree(x + xStart, height + 1, z + zStart);
+          }
+
+          // Add lakes or water
+          if (height < 3 && Math.random() < 0.03) {
+            createWater(x + xStart, height, z + zStart);
           }
         }
       }
+
       loadedChunks.add(chunkKey);
     }
 
-    // Infinite terrain loading
-    function updateTerrain() {
-      const playerChunkX = Math.floor(camera.position.x / terrainSize) * terrainSize;
-      const playerChunkZ = Math.floor(camera.position.z / terrainSize) * terrainSize;
-      generateTerrain(playerChunkX, playerChunkZ);
-      generateTerrain(playerChunkX - terrainSize, playerChunkZ);
-      generateTerrain(playerChunkX + terrainSize, playerChunkZ);
-      generateTerrain(playerChunkX, playerChunkZ - terrainSize);
-      generateTerrain(playerChunkX, playerChunkZ + terrainSize);
+    function getBlockColorBasedOnHeight(y, height) {
+      if (y === height) return 0x228B22; // Grass on top
+      if (y < height - 2) return 0x8B4513; // Dirt below
+      return 0x8B0000; // Stone at the bottom
     }
 
-    // Mobs: Simple entities that move around randomly
-    function spawnMobs() {
-      const mobCount = 3; // Number of mobs to spawn
-      for (let i = 0; i < mobCount; i++) {
-        const mobGeometry = new THREE.SphereGeometry(0.5, 8, 8);
-        const mobMaterial = new THREE.MeshLambertMaterial({ color: 0x00FF00 });
-        const mob = new THREE.Mesh(mobGeometry, mobMaterial);
-        mob.position.set(Math.random() * 100 - 50, 1, Math.random() * 100 - 50);
-        scene.add(mob);
-      }
+    // Create a tree (simple model)
+    function createTree(x, y, z) {
+      const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.5, 3);
+      const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+      trunk.position.set(x, y, z);
+      scene.add(trunk);
+
+      const foliageGeometry = new THREE.SphereGeometry(1, 8, 8);
+      const foliageMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+      const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
+      foliage.position.set(x, y + 2, z);
+      scene.add(foliage);
+    }
+
+    // Create water
+    function createWater(x, y, z) {
+      const waterGeometry = new THREE.BoxGeometry(1, 0.2, 1);
+      const waterMaterial = new THREE.MeshLambertMaterial({ color: 0x1E90FF, opacity: 0.5, transparent: true });
+      const water = new THREE.Mesh(waterGeometry, waterMaterial);
+      water.position.set(x, y, z);
+      scene.add(water);
     }
 
     // Main animation loop
     function animate() {
       updateMovement();
-      updateTerrain();
-      spawnMobs();
+      generateTerrain(Math.floor(camera.position.x / terrainWidth) * terrainWidth, Math.floor(camera.position.z / terrainHeight) * terrainHeight);
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     }
 
-    // Initial camera position and start animation
+    // Initialize camera position and start animation
     camera.position.set(0, 5, 10);
     camera.lookAt(0, 5, 0);
     animate();
-
   </script>
 </body>
 </html>
