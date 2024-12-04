@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Super Enhanced Platformer</title>
+    <title>Super Enhanced Platformer with 20 Levels</title>
     <style>
         body {
             margin: 0;
@@ -60,7 +60,7 @@
         <h2>Lives: <span id="lives">3</span></h2>
         <h2>Time: <span id="time">00:00</span></h2>
     </div>
-    
+
     <script>
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
@@ -77,39 +77,24 @@
             velocityX: 0, velocityY: 0, speedX: 5, speedY: 0
         };
 
-        const levels = [
-            {
+        // Generate multiple levels with varying complexity
+        const levels = Array.from({ length: 21 }, (_, i) => {
+            return {
                 platforms: [
                     { x: 0, y: 350, width: 800, height: 50 },
-                    { x: 150, y: 280, width: 120, height: 20 },
-                    { x: 400, y: 250, width: 100, height: 20 },
-                    { x: 600, y: 200, width: 100, height: 20 }
+                    { x: Math.random() * 200 + 100, y: Math.random() * 100 + 250, width: 100, height: 20 },
+                    { x: Math.random() * 200 + 300, y: Math.random() * 100 + 200, width: 100, height: 20 },
+                    { x: Math.random() * 300 + 500, y: Math.random() * 100 + 150, width: 100, height: 20 }
                 ],
                 traps: [
-                    { x: 250, y: 330, width: 50, height: 20, type: 'spike' }
+                    { x: Math.random() * 700 + 150, y: 330, width: 50, height: 20, type: Math.random() > 0.5 ? 'spike' : 'fire' }
                 ],
                 enemies: [
-                    { x: 500, y: 280, width: 30, height: 40, speed: 2, direction: 1, type: 'patrol' }
+                    { x: Math.random() * 600 + 200, y: 280, width: 30, height: 40, speed: 2 + (i % 3), direction: 1, type: 'patrol' }
                 ],
-                goal: { x: 720, y: 300, width: 50, height: 50 }
-            },
-            {
-                platforms: [
-                    { x: 0, y: 350, width: 800, height: 50 },
-                    { x: 100, y: 280, width: 120, height: 20 },
-                    { x: 400, y: 220, width: 100, height: 20 },
-                    { x: 600, y: 150, width: 100, height: 20 }
-                ],
-                traps: [
-                    { x: 200, y: 330, width: 50, height: 20, type: 'fire' },
-                    { x: 500, y: 220, width: 50, height: 20, type: 'spike' }
-                ],
-                enemies: [
-                    { x: 500, y: 280, width: 30, height: 40, speed: 2, direction: -1, type: 'chaser' }
-                ],
-                goal: { x: 720, y: 300, width: 50, height: 50 }
-            }
-        ];
+                goal: { x: Math.random() * 750 + 700, y: 300, width: 50, height: 50 }
+            };
+        });
 
         const currentLevel = levels[level - 1];
         const platforms = currentLevel.platforms;
@@ -132,6 +117,11 @@
         const damageSound = new Audio('https://www.soundjay.com/button/beep-03.wav');
         const winSound = new Audio('https://www.soundjay.com/button/beep-09.wav');
         const powerUpSound = new Audio('https://www.soundjay.com/button/coin-1.wav');
+        const backgroundMusic = new Audio('https://www.soundjay.com/button/button-16.mp3');
+        backgroundMusic.loop = true;
+
+        // Start background music
+        backgroundMusic.play();
 
         // Timer
         function updateTimer() {
@@ -228,6 +218,7 @@
                 player.y < goal.y + goal.height &&
                 player.y + player.height > goal.y) {
                 winSound.play();
+                score += 100;
                 level++;
                 if (level > levels.length) {
                     alert('You completed all levels!');
