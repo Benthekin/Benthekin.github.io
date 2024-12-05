@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sliding Tile Puzzle</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        #puzzle {
+            display: grid;
+            grid-template-columns: repeat(4, 80px);
+            grid-template-rows: repeat(4, 80px);
+            gap: 5px;
+        }
+        .tile {
+            background-color: #3498db;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        .empty {
+            background-color: #f0f0f0;
+            border: 2px dashed #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="puzzle"></div>
+
+    <script>
+        const size = 4;
+        const puzzle = document.getElementById('puzzle');
+        let tiles = [];
+
+        // Initialize the puzzle
+        function initPuzzle() {
+            tiles = [...Array(size * size - 1).keys()].map(x => x + 1);
+            tiles.push(null); // Empty tile
+            shuffleTiles();
+            renderPuzzle();
+        }
+
+        // Shuffle tiles (simple version)
+        function shuffleTiles() {
+            for (let i = tiles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+            }
+        }
+
+        // Render tiles
+        function renderPuzzle() {
+            puzzle.innerHTML = '';
+            tiles.forEach((value, index) => {
+                const tile = document.createElement('div');
+                tile.className = value ? 'tile' : 'tile empty';
+                tile.textContent = value || '';
+                tile.addEventListener('click', () => moveTile(index));
+                puzzle.appendChild(tile);
+            });
+        }
+
+        // Move a tile
+        function moveTile(index) {
+            const emptyIndex = tiles.indexOf(null);
+            const neighbors = [
+                emptyIndex - 1, emptyIndex + 1, emptyIndex - size, emptyIndex + size
+            ];
+
+            if (neighbors.includes(index) && isValidMove(index, emptyIndex)) {
+                [tiles[emptyIndex], tiles[index]] = [tiles[index], tiles[emptyIndex]];
+                renderPuzzle();
+                checkWin();
+            }
+        }
+
+        // Ensure valid moves for horizontal neighbors
+        function isValidMove(index, emptyIndex) {
+            if (Math.abs(index - emptyIndex) === 1) {
+                return Math.floor(index / size) === Math.floor(emptyIndex / size);
+            }
+            return true;
+        }
+
+        // Check for win condition
+        function checkWin() {
+            const solvedTiles = [...Array(size * size - 1).keys()].map(x => x + 1);
+            if (tiles.slice(0, -1).every((val, i) => val === solvedTiles[i])) {
+                setTimeout(() => alert('Congratulations! You solved the puzzle!'), 100);
+            }
+        }
+
+        initPuzzle();
+    </script>
+</body>
+</html>
