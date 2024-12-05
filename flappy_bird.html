@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flappy Bird</title>
+  <title>Flappy Block</title>
   <style>
     body {
       margin: 0;
@@ -44,11 +44,10 @@
 
     // Game settings
     const gravity = 0.25;
-    const birdWidth = 34;
-    const birdHeight = 24;
-    let birdY = 150;
-    let birdVelocity = 0;
-    let birdX = 50;
+    const blockSize = 34;
+    let blockY = 150;
+    let blockVelocity = 0;
+    const blockX = 50;
 
     // Pipes
     let pipes = [];
@@ -60,22 +59,19 @@
     let score = 0;
     let gameRunning = true;
 
-    // Bird image
-    const birdImage = new Image();
-    birdImage.src = 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Flappy_Bird_icon.png';
-
     function startGame() {
       pipes = [];
-      birdY = 150;
-      birdVelocity = 0;
+      blockY = 150;
+      blockVelocity = 0;
       score = 0;
       gameRunning = true;
       frame = 0;
       loop();
     }
 
-    function drawBird() {
-      ctx.drawImage(birdImage, birdX, birdY, birdWidth, birdHeight);
+    function drawBlock() {
+      ctx.fillStyle = '#ff5733';  // Orange-red color for the block
+      ctx.fillRect(blockX, blockY, blockSize, blockSize);
     }
 
     function drawPipes() {
@@ -106,13 +102,13 @@
     }
 
     function checkCollision() {
-      if (birdY + birdHeight >= canvas.height || birdY <= 0) {
+      if (blockY + blockSize >= canvas.height || blockY <= 0) {
         gameRunning = false;
       }
       pipes.forEach(pipe => {
-        if (birdX < pipe.x + pipeWidth &&
-            birdX + birdWidth > pipe.x &&
-            (birdY < pipe.topHeight || birdY + birdHeight > pipe.topHeight + gapHeight)) {
+        if (blockX < pipe.x + pipeWidth &&
+            blockX + blockSize > pipe.x &&
+            (blockY < pipe.topHeight || blockY + blockSize > pipe.topHeight + gapHeight)) {
           gameRunning = false;
         }
       });
@@ -134,11 +130,11 @@
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      birdVelocity += gravity;
-      birdY += birdVelocity;
+      blockVelocity += gravity;
+      blockY += blockVelocity;
 
       updatePipes();
-      drawBird();
+      drawBlock();
       drawPipes();
       checkCollision();
       displayScore();
@@ -149,7 +145,7 @@
 
     function jump() {
       if (!gameRunning) startGame();
-      birdVelocity = -5;
+      blockVelocity = -5;
     }
 
     // Event listeners
