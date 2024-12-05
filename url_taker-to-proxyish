@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Redirector</title>
+</head>
+<body>
+    <h1>URL Redirector</h1>
+    <p>Enter a URL and click "Go" to navigate:</p>
+    <input type="text" id="urlInput" placeholder="Enter URL here" style="width: 80%;">
+    <button onclick="redirectToUrl()">Go</button>
+
+    <script>
+        function redirectToUrl() {
+            let url = document.getElementById('urlInput').value.trim();
+
+            // Add 'https://' if it's missing
+            if (!url.match(/^https?:\/\//)) {
+                url = 'https://' + url;
+            }
+
+            // Validate URL format
+            try {
+                new URL(url);
+                window.location.href = url; // Redirect
+            } catch (e) {
+                alert('Invalid URL. Please enter a valid web address.');
+            }
+        }
+    </script>
+</body>
+</html>
