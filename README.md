@@ -12,3 +12,4 @@
 <p>https://benthekin.github.io/cad.html -- This link takes you to a basic CAD software.</p>
 <p>https://benthekin.github.io/dodge_the_spike-v.1.html -- this link takes you to a dodging game.</p>
 <p>https://benthekin.github.io/puzzle.html -- This link takes you to a puzzle game.</p>
+<p>https://benthekin.github.io/flappy_bird.html -- This link takes you to a flappy bird game</p>
