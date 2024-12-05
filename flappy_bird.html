@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"> <!-- Disable zooming -->
   <title>Flappy Block</title>
   <style>
     body {
@@ -151,6 +151,16 @@
     // Event listeners
     window.addEventListener('keydown', jump);
     document.getElementById('jumpButton').addEventListener('click', jump);
+
+    // Prevent double-tap zoom
+    let lastTouchTime = 0;
+    document.addEventListener('touchend', (event) => {
+      const currentTime = new Date().getTime();
+      if (currentTime - lastTouchTime < 300) {
+        event.preventDefault();
+      }
+      lastTouchTime = currentTime;
+    }, { passive: false });
 
     startGame();
   </script>
