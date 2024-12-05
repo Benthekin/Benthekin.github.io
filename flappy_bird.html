@@ -18,10 +18,26 @@
       background-color: #70c5ce;
       display: block;
     }
+    #jumpButton {
+      position: absolute;
+      bottom: 20px;
+      padding: 15px 30px;
+      font-size: 24px;
+      background-color: #ffcc00;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    #jumpButton:active {
+      background-color: #ffaa00;
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas" width="320" height="480"></canvas>
+  <button id="jumpButton">Jump</button>
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -131,10 +147,14 @@
       requestAnimationFrame(loop);
     }
 
-    window.addEventListener('keydown', () => {
+    function jump() {
       if (!gameRunning) startGame();
       birdVelocity = -5;
-    });
+    }
+
+    // Event listeners
+    window.addEventListener('keydown', jump);
+    document.getElementById('jumpButton').addEventListener('click', jump);
 
     startGame();
   </script>
