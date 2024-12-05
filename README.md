@@ -8,7 +8,7 @@
 <p>https://benthekin.github.io/jackinthebox.html -- this link makes a very scary jumpscare.🃏📦</p>
 <p>https://benthekin.github.io/clicker.html -- This link takes you to a clicker game.</p>
 <p>https://benthekin.github.io/builder.html -- This link takes you to a 3D builder game</p>
-<p>https://benthekin.github.io/builder2.html -- This link takes you to a minecraft-like building game.</p>
+<p>https://benthekin.github.io/builder2.html -- This link takes you to a minecraft-like game.</p>
 <p>https://benthekin.github.io/cad.html -- This link takes you to a basic CAD software.</p>
 <p>https://benthekin.github.io/dodge_the_spike-v.1.html -- this link takes you to a dodging game.</p>
 <p>https://benthekin.github.io/puzzle.html -- This link takes you to a puzzle game.</p>
