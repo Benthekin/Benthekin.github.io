@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Game for iPad</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        #joystick {
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            touch-action: none;
+        }
+        #joystick-handle {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            position: absolute;
+            top: 30px;
+            left: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div id="joystick">
+        <div id="joystick-handle"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        // Setup Three.js Scene
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Basic Ground
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x22bb22 });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // Player (Cube)
+        const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x4444ff });
+        const player = new THREE.Mesh(playerGeometry, playerMaterial);
+        player.position.y = 0.5;
+        scene.add(player);
+
+        // Lighting
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7.5);
+        scene.add(light);
+
+        // Camera Position
+        camera.position.set(0, 5, 10);
+        camera.lookAt(0, 0, 0);
+
+        // Movement Variables
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let velocity = { x: 0, z: 0 };
+        const speed = 0.1;
+
+        // Touch Joystick Logic
+        const joystick = document.getElementById('joystick');
+        const joystickHandle = document.getElementById('joystick-handle');
+        let joystickActive = false, joystickStartX, joystickStartY;
+
+        joystick.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            joystickStartX = touch.clientX;
+            joystickStartY = touch.clientY;
+            joystickActive = true;
+        });
+
+        joystick.addEventListener('touchmove', (e) => {
+            if (!joystickActive) return;
+            const touch = e.touches[0];
+            const dx = touch.clientX - joystickStartX;
+            const dy = touch.clientY - joystickStartY;
+
+            const maxDist = 40;
+            const dist = Math.min(maxDist, Math.sqrt(dx * dx + dy * dy));
+            const angle = Math.atan2(dy, dx);
+
+            joystickHandle.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
+
+            // Calculate velocity
+            velocity.x = Math.cos(angle) * (dist / maxDist) * speed;
+            velocity.z = Math.sin(angle) * (dist / maxDist) * speed;
+        });
+
+        joystick.addEventListener('touchend', () => {
+            joystickActive = false;
+            velocity.x = 0;
+            velocity.z = 0;
+            joystickHandle.style.transform = 'translate(0, 0)';
+        });
+
+        // Jump Logic
+        let jumping = false;
+        let jumpSpeed = 0;
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.id !== 'joystick' && !jumping) {
+                jumping = true;
+                jumpSpeed = 0.2;
+            }
+        });
+
+        // Game Loop
+        const animate = function () {
+            requestAnimationFrame(animate);
+
+            // Player Movement
+            player.position.x += velocity.x;
+            player.position.z += velocity.z;
+
+            // Jumping Logic
+            if (jumping) {
+                player.position.y += jumpSpeed;
+                jumpSpeed -= 0.01;
+                if (player.position.y <= 0.5) {
+                    jumping = false;
+                    player.position.y = 0.5;
+                }
+            }
+
+            // Update Camera to Follow Player
+            camera.position.set(player.position.x, player.position.y + 5, player.position.z + 10);
+            camera.lookAt(player.position);
+
+            renderer.render(scene, camera);
+        };
+
+        animate();
+
+        // Resize Handling
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
