@@ -14,4 +14,4 @@
 <p>https://benthekin.github.io/puzzle.html -- This link takes you to a puzzle game.</p>
 <p>https://benthekin.github.io/flappy_bird.html -- This link takes you to a flappy bird game</p>
 <p>https://benthekin.github.io/url-taker-to.html -- This link takes you to a url taker to.</p>
-<p>https://benthekin.github.io/t-rex.html -- This link takes you to a t-rex soung player.</p>
+
