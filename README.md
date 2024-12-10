@@ -14,5 +14,6 @@
 <p>https://benthekin.github.io/puzzle.html -- This link takes you to a puzzle game.</p>
 <p>https://benthekin.github.io/flappy_bird.html -- This link takes you to a flappy bird game</p>
 <p>https://benthekin.github.io/url-taker-to.html -- This link takes you to a url taker to.</p>
-<p>https://benthekin.github.io/roblox.html -- This link takes you to a Roblox like game</p>
+<p>https://benthekin.github.io/roblox.html -- This link takes you to a Roblox like game.</p>
+<p>https://benthekin.github.io/platformer2.html -- This link takes you to a platformer game.</p>
 
