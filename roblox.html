@@ -8,7 +8,7 @@
         body {
             margin: 0;
             overflow: hidden;
-            touch-action: none; /* Disable double-tap zoom */
+            touch-action: none;
         }
         canvas {
             display: block;
@@ -21,7 +21,7 @@
             height: 100px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 50%;
-            touch-action: none; /* Disable double-tap zoom */
+            touch-action: none;
         }
         #joystick-handle {
             width: 40px;
@@ -46,7 +46,7 @@
             font-size: 18px;
             font-weight: bold;
             color: white;
-            touch-action: none; /* Disable double-tap zoom */
+            touch-action: none;
         }
     </style>
 </head>
@@ -64,12 +64,10 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Basic Ground
-        const groundGeometry = new THREE.PlaneGeometry(100, 100);
-        const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x22bb22 });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        scene.add(ground);
+        // Lighting
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7.5);
+        scene.add(light);
 
         // Player (Cube)
         const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -78,17 +76,11 @@
         player.position.y = 0.5;
         scene.add(player);
 
-        // Lighting
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5, 10, 7.5);
-        scene.add(light);
-
         // Camera Orbit Variables
-        let cameraAngleX = 0; // Horizontal angle (yaw)
-        let cameraAngleY = Math.PI / 6; // Vertical angle (pitch)
+        let cameraAngleX = 0;
+        let cameraAngleY = Math.PI / 6;
         const cameraDistance = 10;
         let isDragging = false;
-        let isJoystickActive = false;
         let previousTouchX, previousTouchY;
 
         // Update Camera Position
@@ -119,7 +111,6 @@
                 cameraAngleX -= deltaX;
                 cameraAngleY -= deltaY;
 
-                // Clamp vertical angle to avoid flipping
                 cameraAngleY = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, cameraAngleY));
 
                 previousTouchX = touch.clientX;
@@ -161,7 +152,6 @@
 
             joystickHandle.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
 
-            // Calculate velocity
             velocity.x = Math.cos(angle) * (dist / maxDist) * speed;
             velocity.z = Math.sin(angle) * (dist / maxDist) * speed;
         });
@@ -182,24 +172,55 @@
         jumpButton.addEventListener('touchstart', () => {
             if (!isJumping) {
                 isJumping = true;
-                jumpVelocity = 0.2; // Initial jump speed
+                jumpVelocity = 0.2;
             }
         });
+
+        // Terrain Generation Logic
+        const chunkSize = 16;
+        const chunkHeight = 5;
+
+        const blockMaterials = [
+            new THREE.MeshBasicMaterial({ color: 0x8B4513 }), // Dirt
+            new THREE.MeshBasicMaterial({ color: 0x228B22 }), // Grass
+            new THREE.MeshBasicMaterial({ color: 0x808080 }), // Stone
+        ];
+
+        function generateTerrain() {
+            for (let x = -chunkSize / 2; x < chunkSize / 2; x++) {
+                for (let z = -chunkSize / 2; z < chunkSize / 2; z++) {
+                    let height = Math.floor(Math.random() * chunkHeight);
+                    for (let y = 0; y <= height; y++) {
+                        let blockMaterial = blockMaterials[0]; // Default to Dirt
+                        if (y === height) {
+                            blockMaterial = blockMaterials[1]; // Grass on top
+                        }
+                        if (y < height - 2) {
+                            blockMaterial = blockMaterials[2]; // Stone under the surface
+                        }
+                        const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+                        const block = new THREE.Mesh(blockGeometry, blockMaterial);
+                        block.position.set(x, y, z);
+                        scene.add(block);
+                    }
+                }
+            }
+        }
+
+        // Generate initial terrain
+        generateTerrain();
 
         // Game Loop
         const animate = function () {
             requestAnimationFrame(animate);
 
-            // Player Movement
             player.position.x += velocity.x;
             player.position.z += velocity.z;
 
-            // Jump and Gravity
             if (isJumping) {
                 player.position.y += jumpVelocity;
                 jumpVelocity += gravity;
 
-                // Land on the ground
                 if (player.position.y <= 0.5) {
                     player.position.y = 0.5;
                     isJumping = false;
