@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Game for iPad</title>
+    <title>3D Game with Camera Control</title>
     <style>
         body {
             margin: 0;
@@ -65,12 +65,56 @@
         light.position.set(5, 10, 7.5);
         scene.add(light);
 
-        // Camera Position
-        camera.position.set(0, 5, 10);
-        camera.lookAt(0, 0, 0);
+        // Camera Orbit Variables
+        let cameraAngleX = 0; // Horizontal angle (yaw)
+        let cameraAngleY = Math.PI / 6; // Vertical angle (pitch)
+        const cameraDistance = 10;
+        let isDragging = false;
+        let previousTouchX, previousTouchY;
+
+        // Update Camera Position
+        function updateCamera() {
+            camera.position.x = player.position.x + cameraDistance * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
+            camera.position.y = player.position.y + cameraDistance * Math.sin(cameraAngleY);
+            camera.position.z = player.position.z + cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+            camera.lookAt(player.position);
+        }
+        updateCamera();
+
+        // Touch Drag Logic for Camera
+        document.body.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                isDragging = true;
+                previousTouchX = touch.clientX;
+                previousTouchY = touch.clientY;
+            }
+        });
+
+        document.body.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                const touch = e.touches[0];
+                const deltaX = (touch.clientX - previousTouchX) * 0.005;
+                const deltaY = (touch.clientY - previousTouchY) * 0.005;
+
+                cameraAngleX -= deltaX;
+                cameraAngleY -= deltaY;
+
+                // Clamp vertical angle to avoid flipping
+                cameraAngleY = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, cameraAngleY));
+
+                previousTouchX = touch.clientX;
+                previousTouchY = touch.clientY;
+
+                updateCamera();
+            }
+        });
+
+        document.body.addEventListener('touchend', () => {
+            isDragging = false;
+        });
 
         // Movement Variables
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let velocity = { x: 0, z: 0 };
         const speed = 0.1;
 
@@ -110,17 +154,6 @@
             joystickHandle.style.transform = 'translate(0, 0)';
         });
 
-        // Jump Logic
-        let jumping = false;
-        let jumpSpeed = 0;
-
-        window.addEventListener('touchstart', (e) => {
-            if (e.target.id !== 'joystick' && !jumping) {
-                jumping = true;
-                jumpSpeed = 0.2;
-            }
-        });
-
         // Game Loop
         const animate = function () {
             requestAnimationFrame(animate);
@@ -129,20 +162,7 @@
             player.position.x += velocity.x;
             player.position.z += velocity.z;
 
-            // Jumping Logic
-            if (jumping) {
-                player.position.y += jumpSpeed;
-                jumpSpeed -= 0.01;
-                if (player.position.y <= 0.5) {
-                    jumping = false;
-                    player.position.y = 0.5;
-                }
-            }
-
-            // Update Camera to Follow Player
-            camera.position.set(player.position.x, player.position.y + 5, player.position.z + 10);
-            camera.lookAt(player.position);
-
+            updateCamera();
             renderer.render(scene, camera);
         };
 
