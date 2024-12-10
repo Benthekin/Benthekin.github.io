@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Game with Camera Control</title>
+    <title>3D Game with Camera and Joystick</title>
     <style>
         body {
             margin: 0;
@@ -70,6 +70,7 @@
         let cameraAngleY = Math.PI / 6; // Vertical angle (pitch)
         const cameraDistance = 10;
         let isDragging = false;
+        let isJoystickActive = false;
         let previousTouchX, previousTouchY;
 
         // Update Camera Position
@@ -83,7 +84,7 @@
 
         // Touch Drag Logic for Camera
         document.body.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
+            if (e.touches.length === 1 && !isJoystickActive) {
                 const touch = e.touches[0];
                 isDragging = true;
                 previousTouchX = touch.clientX;
@@ -92,7 +93,7 @@
         });
 
         document.body.addEventListener('touchmove', (e) => {
-            if (isDragging && e.touches.length === 1) {
+            if (isDragging && !isJoystickActive && e.touches.length === 1) {
                 const touch = e.touches[0];
                 const deltaX = (touch.clientX - previousTouchX) * 0.005;
                 const deltaY = (touch.clientY - previousTouchY) * 0.005;
@@ -121,17 +122,16 @@
         // Touch Joystick Logic
         const joystick = document.getElementById('joystick');
         const joystickHandle = document.getElementById('joystick-handle');
-        let joystickActive = false, joystickStartX, joystickStartY;
 
         joystick.addEventListener('touchstart', (e) => {
             const touch = e.touches[0];
+            isJoystickActive = true;
             joystickStartX = touch.clientX;
             joystickStartY = touch.clientY;
-            joystickActive = true;
         });
 
         joystick.addEventListener('touchmove', (e) => {
-            if (!joystickActive) return;
+            if (!isJoystickActive) return;
             const touch = e.touches[0];
             const dx = touch.clientX - joystickStartX;
             const dy = touch.clientY - joystickStartY;
@@ -148,7 +148,7 @@
         });
 
         joystick.addEventListener('touchend', () => {
-            joystickActive = false;
+            isJoystickActive = false;
             velocity.x = 0;
             velocity.z = 0;
             joystickHandle.style.transform = 'translate(0, 0)';
