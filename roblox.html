@@ -167,12 +167,13 @@
         const jumpButton = document.getElementById('jump-button');
         let isJumping = false;
         let jumpVelocity = 0;
-        const gravity = -0.01;
+        const gravity = -0.02;
+        const jumpStrength = 0.3;
 
         jumpButton.addEventListener('touchstart', () => {
             if (!isJumping) {
                 isJumping = true;
-                jumpVelocity = 0.2;
+                jumpVelocity = jumpStrength;
             }
         });
 
@@ -244,6 +245,8 @@
 
             player.position.x += velocity.x;
             player.position.z += velocity.z;
+
+            player.position.y += jumpVelocity;
 
             handleGravity();
 
