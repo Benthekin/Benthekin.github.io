@@ -186,6 +186,8 @@
             new THREE.MeshBasicMaterial({ color: 0x808080 }), // Stone
         ];
 
+        let blocks = [];
+
         function generateTerrain() {
             for (let x = -chunkSize / 2; x < chunkSize / 2; x++) {
                 for (let z = -chunkSize / 2; z < chunkSize / 2; z++) {
@@ -202,8 +204,34 @@
                         const block = new THREE.Mesh(blockGeometry, blockMaterial);
                         block.position.set(x, y, z);
                         scene.add(block);
+                        blocks.push(block);
                     }
                 }
+            }
+        }
+
+        // Collision Detection and Player Gravity
+        function checkCollision(player) {
+            let highestPoint = 0;
+            blocks.forEach(block => {
+                if (Math.abs(player.position.x - block.position.x) < 0.5 &&
+                    Math.abs(player.position.z - block.position.z) < 0.5) {
+                    if (block.position.y > highestPoint) {
+                        highestPoint = block.position.y;
+                    }
+                }
+            });
+            return highestPoint;
+        }
+
+        function handleGravity() {
+            const terrainHeight = checkCollision(player);
+            if (player.position.y > terrainHeight + 0.5) {
+                jumpVelocity += gravity;
+            } else {
+                player.position.y = terrainHeight + 0.5;
+                isJumping = false;
+                jumpVelocity = 0;
             }
         }
 
@@ -217,15 +245,7 @@
             player.position.x += velocity.x;
             player.position.z += velocity.z;
 
-            if (isJumping) {
-                player.position.y += jumpVelocity;
-                jumpVelocity += gravity;
-
-                if (player.position.y <= 0.5) {
-                    player.position.y = 0.5;
-                    isJumping = false;
-                }
-            }
+            handleGravity();
 
             updateCamera();
             renderer.render(scene, camera);
