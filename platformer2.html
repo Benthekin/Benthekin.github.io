@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity Flip Platformer</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+
+        canvas {
+            display: block;
+            background-color: #87ceeb;
+        }
+
+        .control-button {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <button class="control-button" id="gravityToggle">Flip Gravity</button>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Gravity directions (down, left, up)
+        const GRAVITY_DIRECTIONS = ['down', 'left', 'up'];
+        let currentGravityIndex = 0; // Start with gravity pulling down
+
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            width: 50,
+            height: 50,
+            speed: 5,
+            velocityX: 0,
+            velocityY: 0,
+            gravity: 0.5, // Gravity strength
+            onGround: false,
+        };
+
+        let keys = {};
+
+        // Listen for keyboard and touch events
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        document.getElementById('gravityToggle').addEventListener('click', () => {
+            currentGravityIndex = (currentGravityIndex + 1) % GRAVITY_DIRECTIONS.length;
+        });
+
+        // Update player movement and gravity
+        function updatePlayer() {
+            if (keys['ArrowLeft'] || keys['a']) {
+                player.velocityX = -player.speed;
+            } else if (keys['ArrowRight'] || keys['d']) {
+                player.velocityX = player.speed;
+            } else {
+                player.velocityX = 0;
+            }
+
+            if (keys['ArrowUp'] || keys['w'] || keys[' ']) {
+                if (player.onGround) {
+                    if (currentGravityIndex === 0) {
+                        player.velocityY = -10;
+                    } else if (currentGravityIndex === 1) {
+                        player.velocityX = -10;
+                    } else if (currentGravityIndex === 2) {
+                        player.velocityY = 10;
+                    }
+                    player.onGround = false;
+                }
+            }
+
+            // Apply gravity based on current gravity state
+            if (currentGravityIndex === 0) {
+                player.velocityY += player.gravity; // Normal gravity down
+            } else if (currentGravityIndex === 1) {
+                player.velocityX -= player.gravity; // Gravity pulling to the left
+            } else if (currentGravityIndex === 2) {
+                player.velocityY -= player.gravity; // Gravity pulling upwards
+            }
+
+            // Check for collision with the ground
+            if (player.y + player.height > canvas.height) {
+                player.y = canvas.height - player.height;
+                player.velocityY = 0;
+                player.onGround = true;
+            }
+            if (player.x + player.width > canvas.width) {
+                player.x = canvas.width - player.width;
+            }
+            if (player.x < 0) {
+                player.x = 0;
+            }
+
+            // Update position based on velocity
+            player.x += player.velocityX;
+            player.y += player.velocityY;
+        }
+
+        // Draw the player and update the game
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            updatePlayer();
+
+            // Draw player
+            ctx.fillStyle = 'red';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            // Draw gravity direction text
+            ctx.fillStyle = 'black';
+            ctx.font = '24px Arial';
+            ctx.fillText('Gravity: ' + GRAVITY_DIRECTIONS[currentGravityIndex], 20, 40);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
