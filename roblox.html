@@ -8,6 +8,7 @@
         body {
             margin: 0;
             overflow: hidden;
+            touch-action: none; /* Disable double-tap zoom */
         }
         canvas {
             display: block;
@@ -20,7 +21,7 @@
             height: 100px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 50%;
-            touch-action: none;
+            touch-action: none; /* Disable double-tap zoom */
         }
         #joystick-handle {
             width: 40px;
@@ -45,7 +46,7 @@
             font-size: 18px;
             font-weight: bold;
             color: white;
-            touch-action: none;
+            touch-action: none; /* Disable double-tap zoom */
         }
     </style>
 </head>
