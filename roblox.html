@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Game with Camera and Joystick</title>
+    <title>3D Game with Jump and Joystick</title>
     <style>
         body {
             margin: 0;
@@ -31,12 +31,29 @@
             top: 30px;
             left: 30px;
         }
+        #jump-button {
+            position: absolute;
+            bottom: 50px;
+            right: 50px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            touch-action: none;
+        }
     </style>
 </head>
 <body>
     <div id="joystick">
         <div id="joystick-handle"></div>
     </div>
+    <div id="jump-button">Jump</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script>
         // Setup Three.js Scene
@@ -122,6 +139,7 @@
         // Touch Joystick Logic
         const joystick = document.getElementById('joystick');
         const joystickHandle = document.getElementById('joystick-handle');
+        let joystickStartX, joystickStartY;
 
         joystick.addEventListener('touchstart', (e) => {
             const touch = e.touches[0];
@@ -154,6 +172,19 @@
             joystickHandle.style.transform = 'translate(0, 0)';
         });
 
+        // Jump Logic
+        const jumpButton = document.getElementById('jump-button');
+        let isJumping = false;
+        let jumpVelocity = 0;
+        const gravity = -0.01;
+
+        jumpButton.addEventListener('touchstart', () => {
+            if (!isJumping) {
+                isJumping = true;
+                jumpVelocity = 0.2; // Initial jump speed
+            }
+        });
+
         // Game Loop
         const animate = function () {
             requestAnimationFrame(animate);
@@ -161,6 +192,18 @@
             // Player Movement
             player.position.x += velocity.x;
             player.position.z += velocity.z;
+
+            // Jump and Gravity
+            if (isJumping) {
+                player.position.y += jumpVelocity;
+                jumpVelocity += gravity;
+
+                // Land on the ground
+                if (player.position.y <= 0.5) {
+                    player.position.y = 0.5;
+                    isJumping = false;
+                }
+            }
 
             updateCamera();
             renderer.render(scene, camera);
