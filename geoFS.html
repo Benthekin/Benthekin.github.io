@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advanced Flight Simulator</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: Arial, sans-serif;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div id="hud">
+  <div>Speed: <span id="speed">0</span></div>
+  <div>Altitude: <span id="altitude">0</span></div>
+  <div>Pitch: <span id="pitch">0</span></div>
+  <div>Roll: <span id="roll">0</span></div>
+</div>
+<script>
+  // Scene setup
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+  const renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  // Skybox
+  const skyboxLoader = new THREE.CubeTextureLoader();
+  const skybox = skyboxLoader.load([
+    'https://example.com/sky_px.jpg',
+    'https://example.com/sky_nx.jpg',
+    'https://example.com/sky_py.jpg',
+    'https://example.com/sky_ny.jpg',
+    'https://example.com/sky_pz.jpg',
+    'https://example.com/sky_nz.jpg',
+  ]);
+  scene.background = skybox;
+
+  // Plane model
+  const planeGeometry = new THREE.BoxGeometry(2, 0.5, 2);
+  const planeMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+  scene.add(plane);
+
+  // Terrain with texture
+  const terrainTexture = new THREE.TextureLoader().load('https://example.com/terrain_texture.jpg');
+  const terrainGeometry = new THREE.PlaneGeometry(1000, 1000, 100, 100);
+  const terrainMaterial = new THREE.MeshStandardMaterial({ map: terrainTexture });
+  const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+  terrain.rotation.x = -Math.PI / 2;
+  scene.add(terrain);
+
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+  directionalLight.position.set(10, 50, 10);
+  scene.add(directionalLight);
+
+  // Camera position
+  camera.position.set(0, 5, 20);
+
+  // Flight physics variables
+  let speed = 0.1;
+  let lift = 0;
+  let drag = 0.01;
+  let thrust = 0.02;
+  let gravity = -0.005;
+  let verticalSpeed = 0;
+  let pitch = 0;
+  let roll = 0;
+  let yaw = 0;
+
+  // HUD Elements
+  const hudSpeed = document.getElementById('speed');
+  const hudAltitude = document.getElementById('altitude');
+  const hudPitch = document.getElementById('pitch');
+  const hudRoll = document.getElementById('roll');
+
+  function updateHUD() {
+    hudSpeed.textContent = speed.toFixed(2);
+    hudAltitude.textContent = plane.position.y.toFixed(2);
+    hudPitch.textContent = pitch.toFixed(2);
+    hudRoll.textContent = roll.toFixed(2);
+  }
+
+  function updatePhysics() {
+    // Update lift
+    lift = speed * 0.02;
+
+    // Update vertical speed
+    verticalSpeed += lift + gravity;
+
+    // Apply drag
+    speed -= drag;
+    if (speed < 0) speed = 0;
+
+    // Update position
+    plane.position.y += verticalSpeed;
+    if (plane.position.y < 0.1) {
+      plane.position.y = 0.1;
+      verticalSpeed = 0;
+    }
+
+    // Update rotation
+    plane.rotation.x = pitch;
+    plane.rotation.z = roll;
+    plane.rotation.y += yaw;
+  }
+
+  function handleKeyDown(event) {
+    switch (event.key) {
+      case 'ArrowUp': // Increase thrust
+        speed += thrust;
+        break;
+      case 'ArrowDown': // Decrease thrust
+        speed -= thrust;
+        if (speed < 0) speed = 0;
+        break;
+      case 'ArrowLeft': // Yaw left
+        yaw = 0.01;
+        break;
+      case 'ArrowRight': // Yaw right
+        yaw = -0.01;
+        break;
+      case 'w': // Pitch up
+        pitch -= 0.01;
+        break;
+      case 's': // Pitch down
+        pitch += 0.01;
+        break;
+      case 'a': // Roll left
+        roll += 0.01;
+        break;
+      case 'd': // Roll right
+        roll -= 0.01;
+        break;
+    }
+  }
+
+  function handleKeyUp(event) {
+    if (['ArrowLeft', 'ArrowRight'].includes(event.key)) yaw = 0;
+    if (['a', 'd'].includes(event.key)) roll = 0;
+    if (['w', 's'].includes(event.key)) pitch = 0;
+  }
+
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+
+    // Update physics
+    updatePhysics();
+
+    // Update HUD
+    updateHUD();
+
+    // Update camera to follow the plane
+    camera.position.set(
+      plane.position.x - 10 * Math.sin(plane.rotation.y),
+      plane.position.y + 5,
+      plane.position.z - 10 * Math.cos(plane.rotation.y)
+    );
+    camera.lookAt(plane.position);
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+</script>
+</body>
+</html>
